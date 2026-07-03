@@ -8,7 +8,7 @@ Para destacar este projeto frente aos concorrentes, a arquitetura e as telas for
 
 ## 🚀 Links do Projeto
 
-- **Frontend Publicado (Deploy):** `[Link de Publicação Vercel/Netlify]` *(A ser preenchido após deploy)*
+- **Frontend Publicado (Deploy):** [novapay-dashboard.vercel.app](https://novapay-dashboard.vercel.app)
 - **Credenciais de Teste (Prontas para Uso):**
   - **Perfil Gestor (Acesso Total + PDCA):** 
     - **E-mail:** `gestor@novapay.com`
