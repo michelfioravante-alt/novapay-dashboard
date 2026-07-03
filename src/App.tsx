@@ -167,7 +167,7 @@ function App() {
       </main>
 
       {/* Rodapé Corporativo - Enfoque Lean */}
-      <footer className="bg-slate-900/30 border-t border-slate-900/60 py-4 px-6 text-center flex flex-col md:flex-row justify-between items-center gap-2 text-xs text-slate-500 font-medium">
+      <footer className="bg-slate-900/30 border-t border-slate-900/60 py-4 px-6 text-center flex flex-col md:flex-row justify-between items-center gap-2 text-xs text-slate-500 font-medium hidden md:flex">
         <p>© 2026 NovaPay S/A. Todos os direitos reservados.</p>
         <p className="flex items-center gap-1.5">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
