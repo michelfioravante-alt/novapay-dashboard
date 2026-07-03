@@ -95,7 +95,7 @@ WHERE status = 'perdido' AND data_fechamento = '2026-07-01';
 
 -- 6. POPULAR ALERTAS ANDON (1 Alerta simulado do n8n para visualização visual)
 INSERT INTO public.alertas_andon (mensagem, resolvido, tipo) VALUES
-('Andon Alert: Faturamento acumulado de R$ 40,000.00 está abaixo do limiar crítico (70% da meta de R$ 100k) restando 10 dias.', FALSE, 'faturamento');
+('Andon Alert: Faturamento acumulado de R$ 65.000,00 está abaixo do limiar crítico (70% da meta de R$ 100k) restando 10 dias.', FALSE, 'faturamento');
 
 -- 7. POPULAR PLANOS DE AÇÃO PDCA (1 Ação de melhoria cadastrada baseada na perda do cliente ID 2)
 INSERT INTO public.pdca_acoes (descricao, responsavel, prazo, causa_raiz, status) VALUES

@@ -130,13 +130,15 @@ export default function GestorDashboard() {
   // Função utilitária para verificar se a data está no período selecionado
   const isInPeriod = useCallback((dateStr: string) => {
     if (!dateStr) return false;
-    const dateObj = new Date(dateStr);
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const cleanDate = dateStr.split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length < 2) return false;
+    const year = parts[0];
+    const month = parts[1];
     
     if (period === 'Q2-2026') {
       // Q2 = Abril, Maio, Junho
-      return year === 2026 && ['04', '05', '06'].includes(month);
+      return year === '2026' && ['04', '05', '06'].includes(month);
     } else {
       // Formato YYYY-MM
       return `${year}-${month}` === period;
@@ -145,11 +147,14 @@ export default function GestorDashboard() {
 
   // 1. Filtragem das Metas do Período
   const activeGoals = metas.filter(m => {
-    const metaDate = new Date(m.mes_referencia);
-    const year = metaDate.getFullYear();
-    const month = String(metaDate.getMonth() + 1).padStart(2, '0');
+    if (!m.mes_referencia) return false;
+    const cleanDate = m.mes_referencia.split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length < 2) return false;
+    const year = parts[0];
+    const month = parts[1];
     if (period === 'Q2-2026') {
-      return year === 2026 && ['04', '05', '06'].includes(month);
+      return year === '2026' && ['04', '05', '06'].includes(month);
     }
     return `${year}-${month}` === period;
   });
@@ -238,10 +243,11 @@ export default function GestorDashboard() {
   const mesesHistoricos = ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'];
   const chartHistoricoData = mesesHistoricos.map(m => {
     const transDoMes = transacoes.filter(t => {
-      const d = new Date(t.data);
-      const y = d.getFullYear();
-      const mo = String(d.getMonth() + 1).padStart(2, '0');
-      return `${y}-${mo}` === m;
+      if (!t.data) return false;
+      const cleanDate = t.data.split('T')[0];
+      const parts = cleanDate.split('-');
+      if (parts.length < 2) return false;
+      return `${parts[0]}-${parts[1]}` === m;
     });
     const ent = transDoMes.filter(t => t.tipo === 'entrada' && t.status === 'confirmada').reduce((acc, t) => acc + Number(t.valor), 0);
     const sai = transDoMes.filter(t => t.tipo === 'saida' && t.status === 'confirmada').reduce((acc, t) => acc + Number(t.valor), 0);
@@ -378,7 +384,7 @@ export default function GestorDashboard() {
   const pctClientes = metaNovosClientesTotal > 0 ? (novosClientesCadastrados / metaNovosClientesTotal) * 100 : 0;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 flex-1 flex flex-col">
       {/* Barra de Filtros de Período e Andon Light */}
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
         <div className="flex items-center gap-3">
@@ -435,7 +441,7 @@ export default function GestorDashboard() {
           </button>
 
           {/* Andon Status Light */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-950 border border-slate-800">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800">
             <span className="andon-indicator">
               <span className={`andon-indicator-ring ${
                 pctReceita >= 95 ? 'bg-emerald-500' : pctReceita >= 70 ? 'bg-amber-500' : 'bg-red-500'
@@ -483,7 +489,7 @@ export default function GestorDashboard() {
       </div>
 
       {/* =========================================================================
-          SEÇÃO DO & CHECK (Executar & Checar) - KPIs de Performance Financeira e Comercial
+          SEÇÃO DO & CHECK (Executar & Analisar) - KPIs de Performance Financeira e Comercial
           ========================================================================= */}
       <div className="space-y-4">
         <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
@@ -586,13 +592,13 @@ export default function GestorDashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                     data={pipelineData}
-                     cx="50%"
-                     cy="50%"
-                     innerRadius={50}
-                     outerRadius={70}
-                     paddingAngle={3}
-                     dataKey="value"
+                    data={pipelineData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={3}
+                    dataKey="value"
                   >
                     {pipelineData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -808,7 +814,7 @@ export default function GestorDashboard() {
                     id="btn-submit-kaizen"
                     type="submit"
                     disabled={submittingKaizen}
-                    className="w-full btn-primary py-2.5 text-xs mt-4 flex items-center justify-center gap-1.5"
+                    className="w-full btn-primary py-2 text-xs mt-4 flex items-center justify-center gap-1.5"
                   >
                     {submittingKaizen ? 'Registrando...' : (
                       <>
@@ -850,7 +856,14 @@ export default function GestorDashboard() {
                         <td className="py-3 pr-2 text-white font-semibold leading-relaxed">{acao.descricao}</td>
                         <td className="py-3 px-2 text-slate-400 leading-normal max-w-[200px] truncate" title={acao.causa_raiz}>{acao.causa_raiz}</td>
                         <td className="py-3 px-2 font-semibold text-slate-200">{acao.responsavel}</td>
-                        <td className="py-3 px-2 font-mono text-slate-400">{new Date(acao.prazo).toLocaleDateString('pt-BR')}</td>
+                        <td className="py-3 px-2 font-mono text-slate-400">
+                          {(() => {
+                            if (!acao.prazo) return '-';
+                            const parts = acao.prazo.split('T')[0].split('-');
+                            if (parts.length < 3) return acao.prazo;
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                          })()}
+                        </td>
                         <td className="py-3 pl-2 text-center">
                           <button
                             id={`btn-toggle-action-${acao.id}`}
@@ -886,25 +899,25 @@ export default function GestorDashboard() {
                 <div className="space-y-1">
                   <label htmlFor="new-action-what" className="text-[10px] font-bold text-slate-500 uppercase">O quê (Ação)?</label>
                   <input
-                     id="new-action-what"
-                     type="text"
-                     required
-                     placeholder="Descrição da ação de melhoria"
-                     value={newActionWhat}
-                     onChange={(e) => setNewActionWhat(e.target.value)}
-                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
+                    id="new-action-what"
+                    type="text"
+                    required
+                    placeholder="Descrição da ação de melhoria"
+                    value={newActionWhat}
+                    onChange={(e) => setNewActionWhat(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
                   />
                 </div>
                 <div className="space-y-1">
                   <label htmlFor="new-action-why" className="text-[10px] font-bold text-slate-500 uppercase">Por quê (Causa Raiz)?</label>
                   <input
-                     id="new-action-why"
-                     type="text"
-                     required
-                     placeholder="Qual a causa identificada?"
-                     value={newActionWhy}
-                     onChange={(e) => setNewActionWhy(e.target.value)}
-                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
+                    id="new-action-why"
+                    type="text"
+                    required
+                    placeholder="Qual a causa identificada?"
+                    value={newActionWhy}
+                    onChange={(e) => setNewActionWhy(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
                   />
                 </div>
               </div>
@@ -913,24 +926,24 @@ export default function GestorDashboard() {
                 <div className="space-y-1">
                   <label htmlFor="new-action-who" className="text-[10px] font-bold text-slate-500 uppercase">Quem?</label>
                   <input
-                     id="new-action-who"
-                     type="text"
-                     required
-                     placeholder="Responsável"
-                     value={newActionWho}
-                     onChange={(e) => setNewActionWho(e.target.value)}
-                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
+                    id="new-action-who"
+                    type="text"
+                    required
+                    placeholder="Responsável"
+                    value={newActionWho}
+                    onChange={(e) => setNewActionWho(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
                   />
                 </div>
                 <div className="space-y-1">
                   <label htmlFor="new-action-when" className="text-[10px] font-bold text-slate-500 uppercase">Quando?</label>
                   <input
-                     id="new-action-when"
-                     type="date"
-                     required
-                     value={newActionWhen}
-                     onChange={(e) => setNewActionWhen(e.target.value)}
-                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
+                    id="new-action-when"
+                    type="date"
+                    required
+                    value={newActionWhen}
+                    onChange={(e) => setNewActionWhen(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
                   />
                 </div>
                 <button

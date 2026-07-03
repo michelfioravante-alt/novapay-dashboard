@@ -227,7 +227,8 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   // =========================================================================
 
   // Consideramos apenas vendas do mês corrente para a meta individual
-  const currentMonthStr = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+  const todayObj = new Date();
+  const currentMonthStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}`;
   
   const currentMonthSales = sales.filter(v => {
     const d = v.data_fechamento || v.data_abertura;
@@ -358,7 +359,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       </div>
 
       {/* Grid Central: Lista de Vendas e Standard Work */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow items-start">
         {/* Tabela de Oportunidades do Vendedor */}
         <div className="glass-panel p-6 lg:col-span-2 space-y-4 flex flex-col h-full">
           <div>
@@ -619,7 +620,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                     rows={3}
                     placeholder="Detalhamento do porquê o negócio foi perdido (Preço, Concorrente, Prazo, etc.)"
                     value={lossReason}
-                    onChange={(e) => setLossReason(e.target.value)}
+                    onChange={(e) => lossReason}
                     className="w-full glass-input text-xs leading-relaxed resize-none"
                   ></textarea>
                   <span className="text-[9px] text-brand-400 flex items-center gap-1">
