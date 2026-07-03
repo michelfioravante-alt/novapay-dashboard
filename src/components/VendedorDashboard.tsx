@@ -22,6 +22,9 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   const [sales, setSales] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   
+  // Navegação Mobile (Aparência de App)
+  const [mobileTab, setMobileTab] = useState<'dashboard' | 'sales' | 'checklist'>('dashboard');
+  
   // Controle de Modais / Formulários
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -259,9 +262,9 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   }
 
   return (
-    <div className="p-6 space-y-6 flex-1 flex flex-col">
+    <div className="p-6 space-y-6 flex-1 flex flex-col pb-20 md:pb-6">
       {/* Subheader do Vendedor */}
-      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+      <div className={`flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between ${mobileTab === 'dashboard' ? 'flex' : 'hidden md:flex'}`}>
         <div>
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Painel Comercial Individual</h2>
           <p className="text-xs text-slate-500 mt-1">Gerencie seu funil e acompanhe suas metas em tempo real</p>
@@ -288,7 +291,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       </div>
 
       {/* Grid de KPIs Individuais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${mobileTab === 'dashboard' ? 'grid' : 'hidden md:grid'}`}>
         {/* Progresso Meta Card */}
         <div className="glass-panel p-6 flex flex-col justify-between">
           <div className="flex items-start justify-between">
@@ -359,9 +362,9 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       </div>
 
       {/* Grid Central: Lista de Vendas e Standard Work */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow items-start">
+      <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 items-start ${mobileTab !== 'dashboard' ? 'block' : 'hidden md:block'}`}>
         {/* Tabela de Oportunidades do Vendedor */}
-        <div className="glass-panel p-6 lg:col-span-2 space-y-4 flex flex-col h-full">
+        <div className={`glass-panel p-6 lg:col-span-2 space-y-4 flex flex-col h-full ${mobileTab === 'sales' ? 'flex' : 'hidden md:flex'}`}>
           <div>
             <h3 className="text-sm font-bold text-white tracking-tight">Minhas Negociações Comerciais</h3>
             <p className="text-xs text-slate-500 mt-0.5">Exibição sob RLS ativo no Supabase (apenas seus registros comerciais)</p>
@@ -431,7 +434,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
         </div>
 
         {/* Standard Work Checklist (Lean) */}
-        <div className="glass-panel p-6 space-y-4">
+        <div className={`glass-panel p-6 space-y-4 ${mobileTab === 'checklist' ? 'block' : 'hidden md:block'}`}>
           <div>
             <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
               <ClipboardList className="w-4 h-4 text-brand-400" /> Standard Work Comercial
@@ -620,7 +623,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                     rows={3}
                     placeholder="Detalhamento do porquê o negócio foi perdido (Preço, Concorrente, Prazo, etc.)"
                     value={lossReason}
-                    onChange={(e) => lossReason}
+                    onChange={(e) => setLossReason(e.target.value)}
                     className="w-full glass-input text-xs leading-relaxed resize-none"
                   ></textarea>
                   <span className="text-[9px] text-brand-400 flex items-center gap-1">
@@ -641,6 +644,38 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           </div>
         </div>
       )}
+      {/* Barra de Navegação Mobile (Vendedor) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex items-center justify-around z-40 px-4 shadow-xl">
+        <button
+          onClick={() => setMobileTab('dashboard')}
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'dashboard' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Target className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Resumo</span>
+        </button>
+
+        <button
+          onClick={() => setMobileTab('sales')}
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'sales' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <DollarSign className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Vendas</span>
+        </button>
+
+        <button
+          onClick={() => setMobileTab('checklist')}
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'checklist' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <ClipboardList className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Checklist</span>
+        </button>
+      </div>
     </div>
   );
 }

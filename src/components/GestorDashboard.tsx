@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, TrendingDown, DollarSign, Target, UserCheck, AlertOctagon, 
-  Clock, Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList
+  Clock, Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X
 } from 'lucide-react';
 
 interface MetricCardProps {
@@ -50,6 +50,16 @@ export default function GestorDashboard() {
   const [period, setPeriod] = useState<string>('2026-07'); // Mês atual por padrão
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Navegação Mobile (Aparência de App)
+  const [mobileTab, setMobileTab] = useState<'dashboard' | 'whys' | 'actions'>('dashboard');
+
+  // Estados de Edição de Metas (Gestor)
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [inputMetaReceita, setInputMetaReceita] = useState('');
+  const [inputMetaClientes, setInputMetaClientes] = useState('');
+  const [submittingGoal, setSubmittingGoal] = useState(false);
+  const [goalModalError, setGoalModalError] = useState<string | null>(null);
 
   // Estados dos Dados Brutos do Banco
   const [vendas, setVendas] = useState<any[]>([]);
@@ -367,6 +377,46 @@ export default function GestorDashboard() {
     }
   };
 
+  // Abrir Modal de Edição de Metas
+  const openGoalModal = () => {
+    const activeGoal = activeGoals[0];
+    setInputMetaReceita(activeGoal ? activeGoal.meta_receita.toString() : '0');
+    setInputMetaClientes(activeGoal ? activeGoal.meta_novos_clientes.toString() : '0');
+    setGoalModalError(null);
+    setIsGoalModalOpen(true);
+  };
+
+  // Salvar / Atualizar Metas
+  const handleGoalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (period === 'Q2-2026') return;
+
+    setSubmittingGoal(true);
+    setGoalModalError(null);
+
+    try {
+      const { error } = await supabase
+        .from('metas')
+        .upsert([
+          {
+            mes_referencia: `${period}-01`,
+            meta_receita: parseFloat(inputMetaReceita),
+            meta_novos_clientes: parseInt(inputMetaClientes)
+          }
+        ], { onConflict: 'mes_referencia' });
+
+      if (error) throw error;
+
+      setIsGoalModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      setGoalModalError(err.message || 'Erro ao atualizar metas corporativas.');
+    } finally {
+      setSubmittingGoal(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-12">
@@ -384,7 +434,7 @@ export default function GestorDashboard() {
   const pctClientes = metaNovosClientesTotal > 0 ? (novosClientesCadastrados / metaNovosClientesTotal) * 100 : 0;
 
   return (
-    <div className="p-6 space-y-6 flex-1 flex flex-col">
+    <div className="p-6 space-y-6 flex-1 flex flex-col pb-20 md:pb-6">
       {/* Barra de Filtros de Período e Andon Light */}
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
         <div className="flex items-center gap-3">
@@ -460,10 +510,21 @@ export default function GestorDashboard() {
       {/* =========================================================================
           SEÇÃO PLAN (Planejar) - Metas Estabelecidas
           ========================================================================= */}
-      <div className="space-y-3">
-        <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
-          <Target className="w-4 h-4" /> PLAN (Planejar) — Objetivos do Período
-        </h2>
+      <div className={`space-y-3 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
+            <Target className="w-4 h-4" /> PLAN (Planejar) — Objetivos do Período
+          </h2>
+          {period !== 'Q2-2026' && (
+            <button
+              id="btn-edit-goals"
+              onClick={openGoalModal}
+              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center gap-1.5"
+            >
+              <Edit2 className="w-3.5 h-3.5" /> Editar Metas
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="glass-panel p-5 flex items-center justify-between border-slate-700/50">
             <div>
@@ -491,7 +552,7 @@ export default function GestorDashboard() {
       {/* =========================================================================
           SEÇÃO DO & CHECK (Executar & Analisar) - KPIs de Performance Financeira e Comercial
           ========================================================================= */}
-      <div className="space-y-4">
+      <div className={`space-y-4 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
         <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
           <ClipboardList className="w-4 h-4" /> DO & CHECK (Executar & Checar) — Análise de Resultados
         </h2>
@@ -709,14 +770,14 @@ export default function GestorDashboard() {
       {/* =========================================================================
           SEÇÃO ACT (Agir) - Melhoria Contínua & Kaizen
           ========================================================================= */}
-      <div className="space-y-6">
-        <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
+      <div className={`space-y-6 ${mobileTab !== 'dashboard' ? 'block' : 'hidden md:block'}`}>
+        <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5 hidden md:flex">
           <RefreshCw className="w-4 h-4" /> ACT (Agir/Ajustar) — Gestão de Melhoria Contínua (Kaizen)
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Análise de 5 Porquês para Vendas Perdidas */}
-          <div className="glass-panel p-6 lg:col-span-1 space-y-4">
+          <div className={`glass-panel p-6 lg:col-span-1 space-y-4 ${mobileTab === 'whys' ? 'block' : 'hidden md:block'}`}>
             <div>
               <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
                 <FileQuestion className="w-4 h-4 text-brand-400" /> Método dos 5 Porquês
@@ -776,7 +837,7 @@ export default function GestorDashboard() {
                         id="action-desc"
                         type="text"
                         required
-                        placeholder="Ex: Formular plano de discounts estruturados"
+                        placeholder="Ex: Formular plano de descontos estruturados"
                         value={actionDesc}
                         onChange={(e) => setActionDesc(e.target.value)}
                         className="w-full bg-slate-900 border border-slate-800/80 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
@@ -828,7 +889,7 @@ export default function GestorDashboard() {
           </div>
 
           {/* Quadro de Ações PDCA / 5W2H */}
-          <div className="glass-panel p-6 lg:col-span-2 space-y-4">
+          <div className={`glass-panel p-6 lg:col-span-2 space-y-4 ${mobileTab === 'actions' ? 'block' : 'hidden md:block'}`}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
@@ -960,6 +1021,98 @@ export default function GestorDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Barra de Navegação Mobile (Estilo App) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex items-center justify-around z-40 px-4 shadow-xl">
+        <button
+          onClick={() => setMobileTab('dashboard')}
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'dashboard' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <TrendingUp className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Métricas</span>
+        </button>
+        
+        <button
+          onClick={() => setMobileTab('whys')}
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'whys' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <FileQuestion className="w-5 h-5" />
+          <span className="text-[10px] font-bold">5 Porquês</span>
+        </button>
+        
+        <button
+          onClick={() => setMobileTab('actions')}
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'actions' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <ClipboardList className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Ações</span>
+        </button>
+      </div>
+
+      {/* Modal: Editar Metas do Gestor */}
+      {isGoalModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="w-full max-w-[450px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Editar Metas Organizacionais</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Referência: {period}</p>
+              </div>
+              <button onClick={() => setIsGoalModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
+            </div>
+
+            <form onSubmit={handleGoalSubmit} className="space-y-4">
+              {goalModalError && (
+                <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
+                  {goalModalError}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label htmlFor="input-goal-revenue" className="text-[10px] font-bold text-slate-400 uppercase">Meta de Receita (R$)</label>
+                <input
+                  id="input-goal-revenue"
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="Ex: 100000.00"
+                  value={inputMetaReceita}
+                  onChange={(e) => setInputMetaReceita(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="input-goal-clients" className="text-[10px] font-bold text-slate-400 uppercase">Meta de Novos Clientes</label>
+                <input
+                  id="input-goal-clients"
+                  type="number"
+                  required
+                  placeholder="Ex: 10"
+                  value={inputMetaClientes}
+                  onChange={(e) => setInputMetaClientes(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <button
+                id="btn-save-goals-submit"
+                type="submit"
+                disabled={submittingGoal}
+                className="w-full btn-primary py-2.5 text-xs mt-2"
+              >
+                {submittingGoal ? 'Sincronizando...' : 'Salvar Metas'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
