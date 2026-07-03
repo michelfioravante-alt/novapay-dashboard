@@ -1,0 +1,216 @@
+{
+  "meta": {
+    "instanceId": "novapay_n8n_instance_01"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "node-schedule-trigger",
+      "name": "Schedule Trigger (Diário)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rxtnlvzxhzyeetpobkyx.supabase.co/rest/v1/rpc/get_revenue_and_meta",
+        "authentication": "predefined",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_ANON_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_ANON_KEY}}"
+            }
+          ]
+        },
+        "sendBody": false,
+        "options": {}
+      },
+      "id": "node-get-supabase-data",
+      "name": "Obter Faturamento e Meta (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// 1. Obter faturamento atual e meta\nconst receitaAtual = parseFloat(data.receita_atual || 0);\nconst metaReceita = parseFloat(data.meta_receita || 100000); // fallback padrão\n\n// 2. Calcular dias restantes no mês corrente\nconst hoje = new Date();\nconst ano = hoje.getFullYear();\nconst mes = hoje.getMonth();\nconst ultimoDiaMes = new Date(ano, mes + 1, 0).getDate();\nconst diaAtual = hoje.getDate();\nconst diasRestantes = ultimoDiaMes - diaAtual;\n\n// 3. Critérios de Alerta (Andon)\n// Condição A: Faltam 10 dias ou menos para o fim do mês\nconst prazoCritico = diasRestantes <= 10;\n\n// Condição B: Receita atual está abaixo de 70% da meta estabelecida\nconst faturamentoAbaixoLimiar = receitaAtual < (0.70 * metaReceita);\n\nreturn {\n  json: {\n    receitaAtual,\n    metaReceita,\n    diasRestantes,\n    prazoCritico,\n    faturamentoAbaixoLimiar,\n    deveAlertar: prazoCritico && faturamentoAbaixoLimiar,\n    mensagemAlerta: `Andon Alert: Faturamento atual de R$ ${receitaAtual.toLocaleString('pt-BR', {minimumFractionDigits: 2})} está abaixo do limiar crítico (70% da meta de R$ ${metaReceita.toLocaleString('pt-BR', {minimumFractionDigits: 2})}) restando apenas ${diasRestantes} dias para o encerramento do mês.`\n  }\n};"
+      },
+      "id": "node-check-andon-condition",
+      "name": "Análise da Causa (Código JS)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        690,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.deveAlertar }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-if-alert",
+      "name": "Deve Disparar Andon?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        910,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rxtnlvzxhzyeetpobkyx.supabase.co/rest/v1/alertas_andon",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_ANON_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_ANON_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"mensagem\": \"{{ $json.mensagemAlerta }}\",\n  \"resolvido\": false,\n  \"tipo\": \"faturamento\"\n}",
+        "options": {}
+      },
+      "id": "node-insert-supabase-alert",
+      "name": "Registrar Andon no Banco (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1150,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/exemplo-teste-mock",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"content\": \"🚨 **[NovaPay - Alerta Andon]** 🚨\\n{{ $json.mensagemAlerta }}\\nPlanos de Ação imediatos devem ser registrados no painel Kaizen.\"\n}",
+        "options": {}
+      },
+      "id": "node-discord-webhook",
+      "name": "Enviar Alerta Webhook (Discord/Slack)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1380,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "node-no-action",
+      "name": "Fim (Fluxo Conforme)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1150,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Diário)": {
+      "main": [
+        [
+          {
+            "node": "Obter Faturamento e Meta (Supabase)",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obter Faturamento e Meta (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Análise da Causa (Código JS)",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Análise da Causa (Código JS)": {
+      "main": [
+        [
+          {
+            "node": "Deve Disparar Andon?",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deve Disparar Andon?": {
+      "main": [
+        [
+          {
+            "node": "Registrar Andon no Banco (Supabase)",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fim (Fluxo Conforme)",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Andon no Banco (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Enviar Alerta Webhook (Discord/Slack)",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
