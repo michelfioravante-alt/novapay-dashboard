@@ -132,8 +132,18 @@ CREATE POLICY "Permitir leitura de vendedores para todos autenticados"
     TO authenticated
     USING (true);
 
-CREATE POLICY "Permitir modificação de vendedores apenas para gestores"
-    ON public.vendedores FOR ALL
+CREATE POLICY "Permitir inserção de vendedores apenas para gestores"
+    ON public.vendedores FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.vendedores
+            WHERE email = auth.jwt() ->> 'email' AND perfil = 'gestor'
+        )
+    );
+
+CREATE POLICY "Permitir atualização de vendedores apenas para gestores"
+    ON public.vendedores FOR UPDATE
     TO authenticated
     USING (
         EXISTS (
@@ -141,6 +151,17 @@ CREATE POLICY "Permitir modificação de vendedores apenas para gestores"
             WHERE email = auth.jwt() ->> 'email' AND perfil = 'gestor'
         )
     );
+
+CREATE POLICY "Permitir deleção de vendedores apenas para gestores"
+    ON public.vendedores FOR DELETE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.vendedores
+            WHERE email = auth.jwt() ->> 'email' AND perfil = 'gestor'
+        )
+    );
+
 
 -- 2. Políticas para CLIENTES (Todos autenticados podem ler e cadastrar clientes)
 CREATE POLICY "Permitir leitura de clientes para todos autenticados"
