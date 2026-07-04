@@ -37,6 +37,9 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
 
   // Estado do Simulador de Vendas
   const [simulatedValue, setSimulatedValue] = useState('');
+
+  // Estado do Filtro de Busca de Clientes
+  const [crmSearch, setCrmSearch] = useState('');
   
   // Controle de Modais / Formulários
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -506,6 +509,14 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
 
   const pctMeta = (faturamentoRealizado / metaIndividual) * 100;
 
+  // Filtragem de vendas para o campo de pesquisa CRM
+  const filteredSales = sales.filter(s => 
+    !crmSearch ? true : (
+      s.clientes?.nome?.toLowerCase().includes(crmSearch.toLowerCase()) ||
+      s.clientes?.segmento?.toLowerCase().includes(crmSearch.toLowerCase())
+    )
+  );
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-12">
@@ -671,33 +682,55 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       }`}>
         {/* Tabela/Kanban de Oportunidades do Vendedor */}
         <div className={`p-6 lg:col-span-2 border-r border-b border-[#23282B] space-y-4 flex flex-col h-full ${mobileTab === 'sales' ? 'flex' : 'hidden md:flex'}`}>
-          <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center justify-between flex-wrap gap-3 border-b border-[#23282B]/60 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-white tracking-tight">Minhas Negociações Comerciais</h3>
+              <h3 className="text-sm font-bold text-white tracking-tight font-sans">Minhas Negociações Comerciais</h3>
               <p className="text-xs text-slate-500 mt-0.5 font-sans">Carteira comercial exclusiva · Arraste os cards para atualizar o estágio em tempo real</p>
             </div>
-            {/* Seletor de Modo de Exibição */}
-            <div className="flex bg-[#0E1113] border border-[#23282B] p-0.5">
-              <button
-                onClick={() => setViewMode('kanban')}
-                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                  viewMode === 'kanban' ? 'bg-[#C9A227] text-[#0E1113]' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Kanban
-              </button>
-              <button
-                onClick={() => setViewMode('lista')}
-                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                  viewMode === 'lista' ? 'bg-[#C9A227] text-[#0E1113]' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Lista
-              </button>
+            
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Barra de Pesquisa Rápida */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Pesquisar cliente ou segmento..."
+                  value={crmSearch}
+                  onChange={(e) => setCrmSearch(e.target.value)}
+                  className="bg-[#0E1113] border border-[#23282B] text-xs px-3 py-1.5 focus:outline-none focus:border-brand-500 text-white placeholder-slate-600 font-sans w-48 rounded-none"
+                />
+                {crmSearch && (
+                  <button 
+                    onClick={() => setCrmSearch('')} 
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-[10px]"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Seletor de Modo de Exibição */}
+              <div className="flex bg-[#0E1113] border border-[#23282B] p-0.5">
+                <button
+                  onClick={() => setViewMode('kanban')}
+                  className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    viewMode === 'kanban' ? 'bg-[#C9A227] text-[#0E1113]' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Kanban
+                </button>
+                <button
+                  onClick={() => setViewMode('lista')}
+                  className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    viewMode === 'lista' ? 'bg-[#C9A227] text-[#0E1113]' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Lista
+                </button>
+              </div>
             </div>
           </div>
 
-          {sales.length > 0 ? (
+          {filteredSales.length > 0 ? (
             viewMode === 'lista' ? (
               <div className="overflow-x-auto flex-grow">
               <table className="w-full text-left border-collapse text-xs">
@@ -712,7 +745,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#23282B]/60 text-slate-300 font-medium">
-                  {sales.map((sale) => (
+                  {filteredSales.map((sale) => (
                     <tr key={sale.id} className="hover:bg-[#0E1113] transition-colors">
                       <td className="py-3.5 pr-2 text-white font-semibold">{sale.clientes?.nome}</td>
                       <td className="py-3.5 px-2">{sale.clientes?.segmento}</td>
@@ -782,11 +815,11 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-grow pt-2 select-none">
                 {/* Colunas do Kanban */}
                 {([
-                  { statusId: 'em_negociacao', title: 'Em Negociação', color: '#C9A227', bg: 'bg-[#C9A227]/5', border: 'border-[#C9A227]/20', count: sales.filter(s => s.status === 'em_negociacao').length },
-                  { statusId: 'ganho', title: 'Ganho', color: '#7FA88C', bg: 'bg-[#7FA88C]/5', border: 'border-[#7FA88C]/20', count: sales.filter(s => s.status === 'ganho').length },
-                  { statusId: 'perdido', title: 'Perdido', color: '#B5504B', bg: 'bg-[#B5504B]/5', border: 'border-[#B5504B]/20', count: sales.filter(s => s.status === 'perdido').length }
+                  { statusId: 'em_negociacao', title: 'Em Negociação', color: '#C9A227', bg: 'bg-[#C9A227]/5', border: 'border-[#C9A227]/20', count: filteredSales.filter(s => s.status === 'em_negociacao').length },
+                  { statusId: 'ganho', title: 'Ganho', color: '#7FA88C', bg: 'bg-[#7FA88C]/5', border: 'border-[#7FA88C]/20', count: filteredSales.filter(s => s.status === 'ganho').length },
+                  { statusId: 'perdido', title: 'Perdido', color: '#B5504B', bg: 'bg-[#B5504B]/5', border: 'border-[#B5504B]/20', count: filteredSales.filter(s => s.status === 'perdido').length }
                 ]).map(col => {
-                  const colSales = sales
+                  const colSales = filteredSales
                     .filter(s => s.status === col.statusId)
                     .sort((a, b) => new Date(b.data_abertura).getTime() - new Date(a.data_abertura).getTime());
 
@@ -919,7 +952,11 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
               </div>
             )
           ) : (
-            <p className="text-xs text-slate-500 py-12 text-center flex-grow">Você ainda não registrou nenhuma oportunidade.</p>
+            <p className="text-xs text-slate-500 py-12 text-center flex-grow">
+              {sales.length === 0 
+                ? 'Você ainda não registrou nenhuma oportunidade.' 
+                : 'Nenhuma oportunidade comercial corresponde aos critérios de pesquisa.'}
+            </p>
           )}
         </div>
         {/* Painel de Insights & Simulador de Comissão */}
