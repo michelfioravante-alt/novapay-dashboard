@@ -58,22 +58,24 @@ O script SQL completo está disponível em [`supabase/schema.sql`](file:///supab
 
 ---
 
-## 📈 Integração Lean & Ciclo PDCA no Painel
+## 📈 Estrutura de Business Review (MBR/QBR) & Gestão Comercial (RevOps)
 
-O painel foi estruturado em abas lógicas representando o ciclo clássico de controle de processos:
+O painel foi estruturado e refinado para refletir o dialeto comercial padrão do mercado (Quarterly/Monthly Business Review), mantendo o rigor do controle de processos lean subjacente:
 
-### 1. PLAN (Planejar)
-- **Metas do Período:** O painel do gestor e do vendedor exibem claramente os objetivos de faturamento e aquisição de clientes estabelecidos para o mês selecionado.
+### 1. Metas do Período (Antigo PLAN)
+- **Metas do Período:** O painel do gestor e do vendedor exibem os objetivos de faturamento e aquisição de clientes estabelecidos para o mês selecionado. O gestor pode atualizar as metas dinamicamente através do formulário administrativo.
+- **Cadastro de Vendedores:** O gestor pode cadastrar novos vendedores diretamente pelo painel.
 
-### 2. DO & CHECK (Executar & Checar)
+### 2. Resultados & Diagnóstico (Antigo DO & CHECK)
 - **Painel Financeiro & Comercial:** O faturamento, despesas operacionais, ticket médio, novos clientes e conversão de vendas são plotados dinamicamente com gráficos interativos em **Recharts**.
-- **Métrica Lean de Lead Time:** O dashboard calcula e exibe o tempo médio de ciclo (dias decorridos entre a abertura e o fechamento do negócio), focando na eliminação de desperdício de tempo e otimização do fluxo comercial.
-- **Visual Management (Andon):** Um indicador de status em semáforo (Verde, Amarelo, Vermelho) sinaliza a estabilidade financeira com base no atingimento da meta daquele período. Alertas gerados pela automação (n8n) são exibidos imediatamente no topo do painel.
+- **Acompanhamento Individual:** O gestor pode utilizar o filtro de vendedor para monitorar o trabalho específico de cada profissional (ex: Mariana Silva).
+- **Métrica Lean de Lead Time:** O dashboard calcula e exibe o tempo médio de ciclo (dias decorridos entre a abertura e o fechamento do negócio), focando na eficiência e otimização do fluxo comercial.
+- **Visual Management (Andon) & Sincronização em Tempo Real:** Um indicador de status em semáforo (Verde, Amarelo, Vermelho) sinaliza a estabilidade financeira com base no atingimento da meta daquele período. Todas as alterações e novas oportunidades criadas pelo vendedor atualizam a tela do gestor de forma reativa e instantânea via Supabase Realtime.
 - **Standard Work comercial:** O painel do vendedor conta com uma checklist diária de processos padrão que ajuda a evitar desvios no fluxo de trabalho.
 
-### 3. ACT (Agir / Ajustar - Melhoria Contínua)
-- **Análise dos 5 Porquês (Kaizen):** Ao selecionar uma venda com status "Perdido", o gestor pode desdobrar os motivos no formulário de "5 Porquês" para descobrir a causa raiz do problema.
-- **Planos de Ação 5W2H:** A submissão da análise gera automaticamente um plano de ação corretiva no quadro, permitindo que a equipe planeje, acompanhe (Em Andamento/Concluído) e neutralize desvios de processo.
+### 3. Plano de Ação (Antigo ACT)
+- **Análise dos 5 Porquês:** Ao selecionar uma venda com status "Perdido", o gestor pode desdobrar os motivos no formulário de "5 Porquês" para descobrir a causa raiz do desvio comercial.
+- **Planos de Ação 5W2H:** A submissão da análise gera automaticamente uma ação corretiva no quadro de planos de ação, permitindo que a equipe planeje, acompanhe (Em Andamento/Concluído) e neutralize desvios de processo.
 
 ---
 
