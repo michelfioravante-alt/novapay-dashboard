@@ -611,19 +611,19 @@ export default function GestorDashboard() {
               }`}></span>
             </span>
             <span className="text-xs font-bold text-slate-300">
-              Andon: {pctReceita >= 95 ? 'Fluxo Estável (Verde)' : pctReceita >= 70 ? 'Atenção (Amarelo)' : 'Intervenção Exigida (Vermelho)'}
+              Andon: {pctReceita >= 95 ? 'Fluxo Estável (Verde)' : pctReceita >= 70 ? 'Atenção (Amarelo)' : 'Intervenção Execida (Vermelho)'}
             </span>
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          SEÇÃO PLAN (Planejar) - Metas Estabelecidas
+          SEÇÃO METAS - Metas Estabelecidas
           ========================================================================= */}
       <div className={`space-y-3 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
-            <Target className="w-4 h-4" /> PLAN (Planejar) — Objetivos do Período
+            <Target className="w-4 h-4" /> Metas do Período — Objetivos Estratégicos
           </h2>
           <div className="flex items-center gap-2">
             <button
@@ -709,11 +709,11 @@ export default function GestorDashboard() {
       </div>
 
       {/* =========================================================================
-          SEÇÃO DO & CHECK (Executar & Analisar) - KPIs de Performance Financeira e Comercial
+          SEÇÃO RESULTADOS & DIAGNÓSTICO - KPIs de Performance Financeira e Comercial
           ========================================================================= */}
       <div className={`space-y-4 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
         <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
-          <ClipboardList className="w-4 h-4" /> DO & CHECK (Executar & Checar) — Análise de Resultados
+          <ClipboardList className="w-4 h-4" /> Resultados & Diagnóstico — Análise de Performance
         </h2>
 
         {/* Alertas Andon Ativos (se houver) */}
@@ -928,11 +928,11 @@ export default function GestorDashboard() {
       </div>
 
       {/* =========================================================================
-          SEÇÃO ACT (Agir) - Melhoria Contínua & Kaizen
+          SEÇÃO PLANO DE AÇÃO - Melhoria e Ajustes
           ========================================================================= */}
       <div className={`space-y-6 ${mobileTab !== 'dashboard' ? 'block' : 'hidden md:block'}`}>
         <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5 hidden md:flex">
-          <RefreshCw className="w-4 h-4" /> ACT (Agir/Ajustar) — Gestão de Melhoria Contínua (Kaizen)
+          <RefreshCw className="w-4 h-4" /> Plano de Ação — Otimização Comercial
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A]">
@@ -940,7 +940,7 @@ export default function GestorDashboard() {
           <div className={`p-6 lg:col-span-1 border-r border-b border-[#23282B] space-y-4 ${mobileTab === 'whys' ? 'block' : 'hidden md:block'}`}>
             <div>
               <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
-                <FileQuestion className="w-4 h-4 text-brand-400" /> Método dos 5 Porquês
+                <FileQuestion className="w-4 h-4 text-brand-400" /> Diagnóstico de Desvios (5 Porquês)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">Analise desvios no fluxo de conversão (vendas perdidas)</p>
             </div>
@@ -966,7 +966,7 @@ export default function GestorDashboard() {
 
               {selectedVendaPerdida && (
                 <div className="space-y-3.5 bg-[#0E1113] p-4 border border-[#23282B] rounded-none">
-                  <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2">Desdobramento da Causa Raiz</p>
+                  <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2">Análise de Causa Raiz</p>
                   
                   {whys.map((why, index) => (
                     <div key={index} className="space-y-1">
@@ -988,7 +988,7 @@ export default function GestorDashboard() {
                   ))}
 
                   <div className="h-px bg-[#23282B] my-4"></div>
-                  <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2">Plano de Contenção (5W2H)</p>
+                  <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2">Ação Comercial (5W2H)</p>
 
                   <div className="space-y-3">
                     <div className="space-y-1">
@@ -997,7 +997,7 @@ export default function GestorDashboard() {
                         id="action-desc"
                         type="text"
                         required
-                        placeholder="Ex: Formular plano de discounts estruturados"
+                        placeholder="Ex: Formular plano de descontos estruturados"
                         value={actionDesc}
                         onChange={(e) => setActionDesc(e.target.value)}
                         className="w-full bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
@@ -1039,7 +1039,7 @@ export default function GestorDashboard() {
                   >
                     {submittingKaizen ? 'Registrando...' : (
                       <>
-                        Registrar Ação PDCA <ArrowRight className="w-3.5 h-3.5" />
+                        Registrar Plano de Ação <ArrowRight className="w-3.5 h-3.5" />
                       </>
                     )}
                   </button>
@@ -1106,7 +1106,7 @@ export default function GestorDashboard() {
                 </table>
               </div>
             ) : (
-              <p className="text-xs text-slate-500 py-12 text-center font-mono">Nenhum plano de ação registrado no quadro PDCA.</p>
+              <p className="text-xs text-slate-500 py-12 text-center font-mono">Nenhum plano de ação registrado.</p>
             )}
 
             {/* Cadastro Rápido de Ação Avulsa */}
