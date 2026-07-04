@@ -149,55 +149,48 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             vendedor_id: vendedor.id,
             cliente_id: clientId,
             valor_contrato: parseFloat(contractValue),
-            data_abertura: openingDate,
             status: status,
-            data_fechamento: status !== 'em_negociacao' ? new Date().toISOString().split('T')[0] : null
+            data_abertura: openingDate,
+            data_fechamento: status !== 'em_negociacao' ? openingDate : null
           }
         ]);
 
       if (error) throw error;
 
-      // Limpar formulário e fechar modal
+      setIsAddModalOpen(false);
       setClientId('');
       setContractValue('');
       setStatus('em_negociacao');
-      setOpeningDate(new Date().toISOString().split('T')[0]);
-      setIsAddModalOpen(false);
-
       loadData();
-    } catch (err: any) {
-      console.error(err);
-      setFormError(err.message || 'Erro ao registrar a oportunidade comercial.');
+    } catch (error: any) {
+      console.error('Erro ao registrar venda:', error);
+      setFormError(error.message || 'Erro ao registrar negociação comercial.');
     } finally {
       setSubmittingSale(false);
     }
   };
 
-  // Abrir Modal de Status de Venda
-  const openStatusModal = (sale: any) => {
-    setSelectedSale(sale);
-    setNextStatus(sale.status);
-    setLossReason(sale.motivo_perda || '');
-    setIsStatusModalOpen(true);
-  };
-
-  // Atualizar Status da Venda (Ganho / Perdido)
+  // Alterar Status da Venda
   const handleUpdateStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSale) return;
 
     setSubmittingStatus(true);
     try {
-      const isClosed = nextStatus !== 'em_negociacao';
-      const closingDate = isClosed ? new Date().toISOString().split('T')[0] : null;
+      const updateData: any = {
+        status: nextStatus,
+        data_fechamento: new Date().toISOString().split('T')[0]
+      };
+
+      if (nextStatus === 'perdido') {
+        updateData.motivo_perda = lossReason;
+      } else {
+        updateData.motivo_perda = null;
+      }
 
       const { error } = await supabase
         .from('vendas')
-        .update({
-          status: nextStatus,
-          data_fechamento: closingDate,
-          motivo_perda: nextStatus === 'perdido' ? lossReason : null
-        })
+        .update(updateData)
         .eq('id', selectedSale.id);
 
       if (error) throw error;
@@ -205,28 +198,40 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       setIsStatusModalOpen(false);
       setSelectedSale(null);
       setLossReason('');
-
       loadData();
     } catch (error) {
-      console.error('Erro ao atualizar status:', error);
+      console.error('Erro ao atualizar status do negócio:', error);
     } finally {
       setSubmittingStatus(false);
     }
   };
 
-  // Deletar Venda
+  // Excluir Venda
   const handleDeleteSale = async (id: string) => {
-    if (!confirm('Deseja excluir definitivamente esta oportunidade comercial?')) return;
+    if (!window.confirm('Deseja realmente excluir esta negociação?')) return;
+
     try {
-      await supabase.from('vendas').delete().eq('id', id);
+      const { error } = await supabase
+        .from('vendas')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
       loadData();
     } catch (error) {
-      console.error('Erro ao deletar venda:', error);
+      console.error('Erro ao excluir venda:', error);
     }
   };
 
+  const openStatusModal = (sale: any) => {
+    setSelectedSale(sale);
+    setNextStatus(sale.status === 'em_negociacao' ? 'ganho' : sale.status);
+    setLossReason(sale.motivo_perda || '');
+    setIsStatusModalOpen(true);
+  };
+
   // =========================================================================
-  // CÁLCULO DOS KPIS INDIVIDUAIS
+  // CÁLCULO DE METRICAS INDIVIDUAIS COM REGRAS LEAN
   // =========================================================================
 
   // Consideramos apenas vendas do mês corrente para a meta individual
@@ -243,8 +248,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   // Realizado Comercial Individual (Faturamento total de vendas ganhas no mês)
   const faturamentoRealizado = wonSalesThisMonth.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
 
-  // Meta Individual Mapeada (Usamos a meta de receita / número de vendedores ativos como simplificação de meta individual,
-  // ou definimos uma meta individual fixa padrão de R$ 25.000,00 para demonstração limpa)
+  // Meta Individual Mapeada
   const metaIndividual = 25000.00; 
 
   // Comissão estimada: 5% sobre vendas ganhas no mês
@@ -291,80 +295,88 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       </div>
 
       {/* Grid de KPIs Individuais */}
-      <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${mobileTab === 'dashboard' ? 'grid' : 'hidden md:grid'}`}>
+      <div className={`grid grid-cols-1 md:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A] ${mobileTab === 'dashboard' ? 'grid' : 'hidden md:grid'}`}>
         {/* Progresso Meta Card */}
-        <div className="glass-panel p-6 flex flex-col justify-between">
+        <div className="bg-[#14181A] border-r border-b border-[#23282B] p-6 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meta Individual do Mês</p>
-              <h3 className="text-2xl font-extrabold text-white mt-2 tracking-tight">
+              <h3 className="text-2xl font-extrabold text-white mt-2 tracking-tight font-mono">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(faturamentoRealizado)} 
-                <span className="text-xs font-medium text-slate-500 block mt-1">de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metaIndividual)}</span>
+                <span className="text-xs font-medium text-slate-500 block mt-1 font-sans">de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metaIndividual)}</span>
               </h3>
             </div>
-            <div className="h-10 w-10 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-slate-300">
-              <Target className="w-5 h-5 text-brand-500" />
+            <div className="h-10 w-10 border border-[#23282B] bg-[#0E1113] flex items-center justify-center text-slate-300">
+              <Target className="w-5 h-5 text-[#C9A227]" />
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-slate-800/60 space-y-2">
+          <div className="mt-4 pt-4 border-t border-[#23282B] space-y-2">
             <div className="flex justify-between text-xs text-slate-400 font-semibold">
-              <span>Progresso</span>
-              <span className={pctMeta >= 100 ? 'text-emerald-500' : 'text-brand-400'}>{pctMeta.toFixed(1)}%</span>
+              <span>Régua de Calibração</span>
+              <span className={`font-mono ${pctMeta >= 70 ? 'text-[#7FA88C]' : 'text-[#B5504B]'}`}>{pctMeta.toFixed(1)}%</span>
             </div>
-            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-6 bg-[#0E1113] border border-[#23282B] relative w-full overflow-hidden">
               <div 
-                className={`h-full rounded-full transition-all duration-500 ${pctMeta >= 100 ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                className={`h-full ${pctMeta >= 70 ? 'bg-[#7FA88C]' : 'bg-[#B5504B]'}`}
                 style={{ width: `${Math.min(pctMeta, 100)}%` }}
               ></div>
+              {/* Limiar de 70% fixo */}
+              <div className="absolute top-0 bottom-0 left-[70%] w-px bg-[#B5504B]" title="Zona Crítica (70%)">
+                <span className="absolute bottom-0.5 left-1 text-[7px] text-[#B5504B] font-bold">70%</span>
+              </div>
+              {/* Meta 100% */}
+              <div className="absolute top-0 bottom-0 left-[99%] w-0.5 bg-[#C9A227]" title="Meta 100%">
+                <span className="absolute bottom-0.5 right-1 text-[7px] text-[#C9A227] font-bold">META</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Comissão Estimada Card */}
-        <div className="glass-panel p-6 flex flex-col justify-between">
+        <div className="bg-[#14181A] border-r border-b border-[#23282B] p-6 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Comissão Estimada (5%)</p>
-              <h3 className="text-2xl font-extrabold text-emerald-400 mt-2 tracking-tight">
+              <h3 className="text-2xl font-extrabold text-[#7FA88C] mt-2 tracking-tight font-mono">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(comissaoEstimada)}
               </h3>
             </div>
-            <div className="h-10 w-10 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-slate-300">
-              <Percent className="w-5 h-5 text-emerald-500" />
+            <div className="h-10 w-10 border border-[#23282B] bg-[#0E1113] flex items-center justify-center text-slate-300">
+              <Percent className="w-5 h-5 text-[#7FA88C]" />
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-slate-800/60 text-xs text-slate-500">
+          <div className="mt-4 pt-4 border-t border-[#23282B] text-xs text-slate-500">
             <span>Provisionado sobre {wonSalesThisMonth.length} vendas ganhas este mês</span>
           </div>
         </div>
 
         {/* Total Oportunidades Card */}
-        <div className="glass-panel p-6 flex flex-col justify-between">
+        <div className="bg-[#14181A] border-r border-b border-[#23282B] p-6 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Funil Comercial Ativo</p>
-              <h3 className="text-2xl font-extrabold text-white mt-2 tracking-tight">
+              <h3 className="text-2xl font-extrabold text-white mt-2 tracking-tight font-mono">
                 {sales.filter(s => s.status === 'em_negociacao').length} propostas
               </h3>
             </div>
-            <div className="h-10 w-10 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-slate-300">
+            <div className="h-10 w-10 border border-[#23282B] bg-[#0E1113] flex items-center justify-center text-slate-300">
               <DollarSign className="w-5 h-5 text-brand-500" />
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-slate-800/60 text-xs text-slate-500">
-            <span>Soma estimada no pipeline: {
+          <div className="mt-4 pt-4 border-t border-[#23282B] text-xs text-slate-500">
+            <span>Soma pipeline: <span className="font-mono">{
               new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                 sales.filter(s => s.status === 'em_negociacao').reduce((acc, v) => acc + Number(v.valor_contrato), 0)
               )
-            }</span>
+            }</span></span>
           </div>
         </div>
       </div>
 
       {/* Grid Central: Lista de Vendas e Standard Work */}
-      <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 items-start ${mobileTab !== 'dashboard' ? 'block' : 'hidden md:block'}`}>
+      <div className={`grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A] flex-1 items-start ${mobileTab !== 'dashboard' ? 'block' : 'hidden md:block'}`}>
         {/* Tabela de Oportunidades do Vendedor */}
-        <div className={`glass-panel p-6 lg:col-span-2 space-y-4 flex flex-col h-full ${mobileTab === 'sales' ? 'flex' : 'hidden md:flex'}`}>
+        <div className={`p-6 lg:col-span-2 border-r border-b border-[#23282B] space-y-4 flex flex-col h-full ${mobileTab === 'sales' ? 'flex' : 'hidden md:flex'}`}>
           <div>
             <h3 className="text-sm font-bold text-white tracking-tight">Minhas Negociações Comerciais</h3>
             <p className="text-xs text-slate-500 mt-0.5">Exibição sob RLS ativo no Supabase (apenas seus registros comerciais)</p>
@@ -374,7 +386,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             <div className="overflow-x-auto flex-grow">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-500 uppercase tracking-widest font-bold">
+                  <tr className="border-b border-[#23282B] text-slate-500 uppercase tracking-widest font-bold">
                     <th className="py-3 pr-2">Cliente</th>
                     <th className="py-3 px-2">Segmento</th>
                     <th className="py-3 px-2">Abertura</th>
@@ -383,9 +395,9 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                     <th className="py-3 pl-2 text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/40 text-slate-300 font-medium">
+                <tbody className="divide-y divide-[#23282B]/60 text-slate-300 font-medium">
                   {sales.map((sale) => (
-                    <tr key={sale.id} className="hover:bg-slate-900/30 transition-colors">
+                    <tr key={sale.id} className="hover:bg-[#0E1113] transition-colors">
                       <td className="py-3.5 pr-2 text-white font-semibold">{sale.clientes?.nome}</td>
                       <td className="py-3.5 px-2">{sale.clientes?.segmento}</td>
                       <td className="py-3.5 px-2 font-mono text-slate-400">{new Date(sale.data_abertura).toLocaleDateString('pt-BR')}</td>
@@ -393,12 +405,12 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.valor_contrato)}
                       </td>
                       <td className="py-3.5 px-2 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+                        <span className={`px-2 py-0.5 text-[9px] font-bold border rounded-none ${
                           sale.status === 'ganho'
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]'
                             : sale.status === 'perdido'
-                            ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                            : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                            ? 'bg-[#B5504B]/10 border-[#B5504B]/20 text-[#B5504B]'
+                            : 'bg-[#C9A227]/10 border-[#C9A227]/20 text-[#C9A227]'
                         }`}>
                           {sale.status === 'ganho' ? 'Ganho' : sale.status === 'perdido' ? 'Perdido' : 'Em Negociação'}
                         </span>
@@ -408,7 +420,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                           <button
                             id={`btn-edit-status-${sale.id}`}
                             onClick={() => openStatusModal(sale)}
-                            className="p-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+                            className="p-1 bg-[#0E1113] border border-[#23282B] rounded-none text-slate-300 hover:text-white transition-colors"
                             title="Atualizar Status"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -416,7 +428,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                           <button
                             id={`btn-delete-sale-${sale.id}`}
                             onClick={() => handleDeleteSale(sale.id)}
-                            className="p-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-colors"
+                            className="p-1 bg-[#0E1113] border border-[#23282B] rounded-none text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-colors"
                             title="Excluir"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -434,7 +446,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
         </div>
 
         {/* Standard Work Checklist (Lean) */}
-        <div className={`glass-panel p-6 space-y-4 ${mobileTab === 'checklist' ? 'block' : 'hidden md:block'}`}>
+        <div className={`p-6 border-r border-b border-[#23282B] space-y-4 ${mobileTab === 'checklist' ? 'block' : 'hidden md:block'}`}>
           <div>
             <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
               <ClipboardList className="w-4 h-4 text-brand-400" /> Standard Work Comercial
@@ -447,17 +459,17 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
               <div 
                 key={task.id}
                 onClick={() => handleToggleTask(task.id)}
-                className={`p-3.5 rounded-xl border transition-all duration-300 cursor-pointer flex items-center justify-between group ${
+                className={`p-3.5 border cursor-pointer flex items-center justify-between group rounded-none ${
                   task.done 
-                    ? 'bg-emerald-950/10 border-emerald-500/20 text-slate-500' 
-                    : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300'
+                    ? 'bg-[#7FA88C]/5 border-[#7FA88C]/10 text-slate-500' 
+                    : 'bg-[#0E1113] border-[#23282B] text-slate-300'
                 }`}
               >
                 <span className={`text-xs font-semibold leading-relaxed ${task.done ? 'line-through' : ''}`}>{task.text}</span>
-                <div className={`h-5 w-5 rounded-lg border flex items-center justify-center transition-all ${
+                <div className={`h-5 w-5 border flex items-center justify-center rounded-none ${
                   task.done 
-                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
-                    : 'border-slate-700 group-hover:border-slate-500'
+                    ? 'bg-[#7FA88C]/20 border-[#7FA88C] text-[#7FA88C]' 
+                    : 'border-[#23282B] group-hover:border-slate-500'
                 }`}>
                   {task.done && <Check className="w-3.5 h-3.5" />}
                 </div>
@@ -465,8 +477,8 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             ))}
           </div>
 
-          <div className="bg-brand-500/5 border border-brand-500/15 p-4 rounded-xl text-xs text-brand-200/90 leading-relaxed flex gap-2">
-            <AlertCircle className="w-4 h-4 text-brand-400 flex-shrink-0 mt-0.5" />
+          <div className="bg-[#0E1113] border border-[#23282B] p-4 text-xs text-slate-400 leading-relaxed flex gap-2 rounded-none">
+            <AlertCircle className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
             <p>O <strong>Standard Work</strong> garante a padronização do funil de vendas comerciais, mitigando o desperdício de retrabalho e inconsistência operacional.</p>
           </div>
         </div>
@@ -478,49 +490,56 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
 
       {/* Modal 1: Registrar Oportunidade */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="w-full max-w-[500px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4 animate-slide-up">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white tracking-tight">Nova Oportunidade Comercial</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-[500px] border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4 rounded-none">
+            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Plus className="w-4.5 h-4.5 text-brand-500" /> Registrar Negociação Comercial
+              </h3>
+              <button 
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setFormError(null);
+                }} 
+                className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* Cadastro de Cliente Rápido */}
-            <form onSubmit={handleRegisterClient} className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
-              <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider">Cadastrar Novo Cliente Rápido</p>
-              <div className="grid grid-cols-3 gap-2 items-end">
-                <div className="col-span-2 space-y-1">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nome da empresa/cliente"
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
-                  />
-                </div>
+            {formError && (
+              <div className="p-3 bg-[#B5504B]/10 border border-[#B5504B]/20 text-[#B5504B] text-xs font-semibold leading-relaxed">
+                {formError}
+              </div>
+            )}
+
+            {/* Cadastro Rápido de Cliente */}
+            <form onSubmit={handleRegisterClient} className="space-y-3 bg-[#0E1113] p-4 border border-[#23282B] rounded-none">
+              <p className="text-[10px] font-bold text-[#C9A227] uppercase tracking-wider">Cliente não cadastrado? Adicione rápido:</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="Nome da empresa ou parceiro"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  className="flex-1 bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
+                />
                 <button
                   type="submit"
                   disabled={isRegisteringClient}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-1.5 px-3 rounded-lg text-xs border border-slate-700/60"
+                  className="btn-secondary px-3 py-1.5 text-xs font-bold uppercase tracking-wider"
                 >
                   {isRegisteringClient ? 'Criando...' : 'Cadastrar'}
                 </button>
               </div>
             </form>
 
-            {/* Formulário Principal de Venda */}
             <form onSubmit={handleCreateSale} className="space-y-4">
-              {formError && (
-                <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
-                  {formError}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label htmlFor="client-select" className="text-[10px] font-bold text-slate-400 uppercase">Selecione o Cliente</label>
+              <div className="space-y-1.5">
+                <label htmlFor="select-sale-client" className="text-[10px] font-bold text-slate-400 uppercase">Selecione o Cliente *</label>
                 <select
-                  id="client-select"
+                  id="select-sale-client"
                   required
                   value={clientId}
                   onChange={(e) => setClientId(e.target.value)}
@@ -533,45 +552,46 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label htmlFor="input-contract-value" className="text-[10px] font-bold text-slate-400 uppercase">Valor do Contrato (R$)</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="input-sale-val" className="text-[10px] font-bold text-slate-400 uppercase">Valor de Contrato (R$) *</label>
                   <input
-                    id="input-contract-value"
+                    id="input-sale-val"
                     type="number"
                     step="0.01"
                     required
-                    placeholder="Ex: 15000.00"
+                    placeholder="Ex: 5000.00"
                     value={contractValue}
                     onChange={(e) => setContractValue(e.target.value)}
                     className="w-full glass-input text-xs"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label htmlFor="input-opening-date" className="text-[10px] font-bold text-slate-400 uppercase">Data de Abertura</label>
-                  <input
-                    id="input-opening-date"
-                    type="date"
+
+                <div className="space-y-1.5">
+                  <label htmlFor="select-sale-status" className="text-[10px] font-bold text-slate-400 uppercase">Status Inicial *</label>
+                  <select
+                    id="select-sale-status"
                     required
-                    value={openingDate}
-                    onChange={(e) => setOpeningDate(e.target.value)}
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
                     className="w-full glass-input text-xs"
-                  />
+                  >
+                    <option value="em_negociacao">Em Negociação</option>
+                    <option value="ganho">Ganho (Fechado)</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label htmlFor="status-select" className="text-[10px] font-bold text-slate-400 uppercase">Status Inicial</label>
-                <select
-                  id="status-select"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
+              <div className="space-y-1.5">
+                <label htmlFor="input-sale-date" className="text-[10px] font-bold text-slate-400 uppercase">Data de Abertura *</label>
+                <input
+                  id="input-sale-date"
+                  type="date"
+                  required
+                  value={openingDate}
+                  onChange={(e) => setOpeningDate(e.target.value)}
                   className="w-full glass-input text-xs"
-                >
-                  <option value="em_negociacao">Em Negociação</option>
-                  <option value="ganho">Ganho (Faturamento Imediato)</option>
-                  <option value="perdido">Perdido</option>
-                </select>
+                />
               </div>
 
               <button
@@ -580,55 +600,71 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                 disabled={submittingSale}
                 className="w-full btn-primary py-2.5 text-xs mt-2"
               >
-                {submittingSale ? 'Registrando...' : 'Registrar Oportunidade Comercial'}
+                {submittingSale ? 'Registrando...' : 'Registrar Oportunidade'}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Modal 2: Alterar Status de Venda existente (com motivo de perda) */}
+      {/* Modal 2: Alterar Status da Venda (PDCA / Kaizen Trigger para Perdas) */}
       {isStatusModalOpen && selectedSale && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="w-full max-w-[450px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4 animate-slide-up">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-sm font-bold text-white tracking-tight">Atualizar Status de Negociação</h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">Cliente: {selectedSale.clientes?.nome}</p>
-              </div>
-              <button onClick={() => setIsStatusModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-[450px] border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4 rounded-none">
+            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Edit2 className="w-4.5 h-4.5 text-brand-500" /> Atualizar Status Comercial
+              </h3>
+              <button 
+                onClick={() => {
+                  setIsStatusModalOpen(false);
+                  setSelectedSale(null);
+                  setLossReason('');
+                }} 
+                className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-[#0E1113] border border-[#23282B] text-xs text-slate-300">
+              <p><strong>Cliente:</strong> {selectedSale.clientes?.nome}</p>
+              <p className="mt-1"><strong>Valor Original:</strong> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedSale.valor_contrato)}</p>
             </div>
 
             <form onSubmit={handleUpdateStatus} className="space-y-4">
-              <div className="space-y-1">
-                <label htmlFor="next-status-select" className="text-[10px] font-bold text-slate-400 uppercase">Selecione o Status</label>
+              <div className="space-y-1.5">
+                <label htmlFor="select-update-status" className="text-[10px] font-bold text-slate-400 uppercase">Novo Status *</label>
                 <select
-                  id="next-status-select"
+                  id="select-update-status"
+                  required
                   value={nextStatus}
                   onChange={(e) => setNextStatus(e.target.value)}
                   className="w-full glass-input text-xs"
                 >
-                  <option value="em_negociacao">Em Negociação</option>
-                  <option value="ganho">Ganho (Gerar Entrada Financeira)</option>
-                  <option value="perdido">Perdido (Causa Raiz do PDCA)</option>
+                  <option value="ganho">Ganho (Venda Fechada)</option>
+                  <option value="perdido">Perdido (Venda Descartada)</option>
                 </select>
               </div>
 
               {nextStatus === 'perdido' && (
                 <div className="space-y-1.5">
-                  <label htmlFor="loss-reason-textarea" className="text-[10px] font-bold text-slate-400 uppercase">Motivo da Perda (Why?)</label>
-                  <textarea
-                    id="loss-reason-textarea"
+                  <label htmlFor="select-loss-reason" className="text-[10px] font-bold text-[#B5504B] uppercase">Motivo da Perda (Requisito Kaizen) *</label>
+                  <select
+                    id="select-loss-reason"
                     required
-                    rows={3}
-                    placeholder="Detalhamento do porquê o negócio foi perdido (Preço, Concorrente, Prazo, etc.)"
                     value={lossReason}
                     onChange={(e) => setLossReason(e.target.value)}
-                    className="w-full glass-input text-xs leading-relaxed resize-none"
-                  ></textarea>
-                  <span className="text-[9px] text-brand-400 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" /> Este motivo alimentará o painel Kaizen do gestor.
-                  </span>
+                    className="w-full glass-input text-xs text-white"
+                  >
+                    <option value="">Selecione o principal desvio comercial...</option>
+                    <option value="Preço Alto">Preço Alto / Sem Fit Financeiro</option>
+                    <option value="Falta de Recurso Técnico">Falta de Recurso Técnico do Produto</option>
+                    <option value="Perdido para Concorrência">Perdido para Concorrência</option>
+                    <option value="Decisão Adiada">Decisão Adiada pelo Cliente</option>
+                    <option value="Sem Contato / Ghosting">Sem Resposta do Lead (Ghosting)</option>
+                  </select>
+                  <p className="text-[9px] text-slate-500 mt-1">Este dado alimentará automaticamente o painel de 5 Porquês do gestor.</p>
                 </div>
               )}
 
@@ -638,42 +674,41 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                 disabled={submittingStatus}
                 className="w-full btn-primary py-2.5 text-xs mt-2"
               >
-                {submittingStatus ? 'Sincronizando...' : 'Atualizar Oportunidade'}
+                {submittingStatus ? 'Sincronizando...' : 'Confirmar Transição de Status'}
               </button>
             </form>
           </div>
         </div>
       )}
-      {/* Barra de Navegação Mobile (Vendedor) */}
+
+      {/* Barra de Navegação Mobile (Estilo App) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex items-center justify-around z-40 px-4 shadow-xl">
         <button
           onClick={() => setMobileTab('dashboard')}
-          className={`flex flex-col items-center justify-center gap-1 transition-all ${
-            mobileTab === 'dashboard' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
+            mobileTab === 'dashboard' ? 'text-[#C9A227]' : 'text-slate-400'
           }`}
         >
           <Target className="w-5 h-5" />
-          <span className="text-[10px] font-bold">Resumo</span>
+          <span>Meta</span>
         </button>
-
         <button
           onClick={() => setMobileTab('sales')}
-          className={`flex flex-col items-center justify-center gap-1 transition-all ${
-            mobileTab === 'sales' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
+            mobileTab === 'sales' ? 'text-[#C9A227]' : 'text-slate-400'
           }`}
         >
           <DollarSign className="w-5 h-5" />
-          <span className="text-[10px] font-bold">Vendas</span>
+          <span>Funil</span>
         </button>
-
         <button
           onClick={() => setMobileTab('checklist')}
-          className={`flex flex-col items-center justify-center gap-1 transition-all ${
-            mobileTab === 'checklist' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
+            mobileTab === 'checklist' ? 'text-[#C9A227]' : 'text-slate-400'
           }`}
         >
           <ClipboardList className="w-5 h-5" />
-          <span className="text-[10px] font-bold">Checklist</span>
+          <span>Procedimento</span>
         </button>
       </div>
     </div>

@@ -157,26 +157,22 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 relative overflow-hidden">
-      {/* Background Decorative Gradients */}
-      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] rounded-full bg-brand-600/10 blur-[80px] pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[350px] h-[350px] rounded-full bg-emerald-500/5 blur-[100px] pointer-events-none"></div>
-
+    <div className="min-h-screen bg-[#0E1113] flex flex-col justify-center items-center px-4 relative overflow-hidden">
       <div className="w-full max-w-[440px] z-10">
         {/* Logo and Intro */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-14 w-14 rounded-2xl bg-gradient-to-tr from-brand-700 to-brand-500 items-center justify-center shadow-xl shadow-brand-500/10 mb-4 animate-bounce-slow">
-            <span className="font-black text-white text-2xl tracking-widest">NP</span>
+          <div className="inline-flex h-14 w-14 bg-[#C9A227] items-center justify-center mb-4 border border-[#23282B]">
+            <span className="font-extrabold text-[#0E1113] text-2xl tracking-widest">NP</span>
           </div>
           <h2 className="text-2xl font-extrabold text-white tracking-tight">NovaPay S/A</h2>
           <p className="text-slate-400 text-sm mt-1">Insira suas credenciais corporativas de controle de processos</p>
         </div>
 
         {/* Login Card */}
-        <div className="glass-panel p-8 shadow-2xl">
+        <div className="glass-panel p-8 shadow-none border border-[#23282B] bg-[#14181A]">
           <form onSubmit={handleLogin} className="space-y-5">
             {errorMessage && (
-              <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold leading-relaxed">
+              <div className="p-3.5 bg-[#B5504B]/10 border border-[#B5504B]/20 text-[#B5504B] text-xs font-semibold leading-relaxed">
                 {errorMessage}
               </div>
             )}
@@ -194,7 +190,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                   placeholder="exemplo@novapay.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full glass-input pl-10 text-sm"
+                  className="w-full glass-input pl-10 text-sm rounded-none"
                 />
               </div>
             </div>
@@ -212,7 +208,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full glass-input pl-10 text-sm"
+                  className="w-full glass-input pl-10 text-sm rounded-none"
                 />
               </div>
             </div>
@@ -224,7 +220,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               className="w-full btn-primary py-3 text-sm flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
-                <div className="h-4 w-4 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+                <div className="h-4 w-4 border-2 border-white/20 border-t-white animate-spin"></div>
               ) : (
                 <>
                   Entrar no Painel <ArrowRight className="w-4 h-4" />
@@ -235,9 +231,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
           {/* Divider */}
           <div className="relative flex py-5 items-center">
-            <div className="flex-grow border-t border-slate-800"></div>
+            <div className="flex-grow border-t border-[#23282B]"></div>
             <span className="flex-shrink mx-4 text-[10px] text-slate-500 font-bold tracking-widest uppercase">Facilitador de Testes</span>
-            <div className="flex-grow border-t border-slate-800"></div>
+            <div className="flex-grow border-t border-[#23282B]"></div>
           </div>
 
           {/* Quick Access Buttons */}
@@ -247,9 +243,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               type="button"
               onClick={() => quickAccess('gestor')}
               disabled={loading}
-              className="px-4 py-3 rounded-xl border border-slate-800 bg-slate-900/40 hover:bg-brand-600/10 hover:border-brand-500/40 text-left transition-all duration-300 flex flex-col gap-1 text-slate-300 group"
+              className="px-4 py-3 border border-[#23282B] bg-[#14181A] hover:bg-[#C9A227]/10 hover:border-[#C9A227]/40 text-left flex flex-col gap-1 text-slate-300 group rounded-none"
             >
-              <Shield className="w-4 h-4 text-brand-500 group-hover:scale-110 transition-transform" />
+              <Shield className="w-4 h-4 text-[#C9A227]" />
               <div>
                 <p className="text-xs font-bold text-white leading-none">Perfil Gestor</p>
                 <p className="text-[9px] text-slate-500 mt-1">Acesso completo</p>
@@ -261,9 +257,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               type="button"
               onClick={() => quickAccess('vendedor')}
               disabled={loading}
-              className="px-4 py-3 rounded-xl border border-slate-800 bg-slate-900/40 hover:bg-emerald-600/10 hover:border-emerald-500/40 text-left transition-all duration-300 flex flex-col gap-1 text-slate-300 group"
+              className="px-4 py-3 border border-[#23282B] bg-[#14181A] hover:bg-[#7FA88C]/10 hover:border-[#7FA88C]/40 text-left flex flex-col gap-1 text-slate-300 group rounded-none"
             >
-              <User className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
+              <User className="w-4 h-4 text-[#7FA88C]" />
               <div>
                 <p className="text-xs font-bold text-white leading-none">Perfil Vendedor</p>
                 <p className="text-[9px] text-slate-500 mt-1">Visualização de RLS</p>
