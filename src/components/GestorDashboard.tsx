@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  Legend, Cell, PieChart, Pie, ComposedChart, Line, Bar
+  Legend, Cell, PieChart, Pie
 } from 'recharts';
 import { 
   Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp
@@ -640,8 +640,12 @@ export default function GestorDashboard() {
   const pctReceita = metaReceita > 0 ? (totalEntradas / metaReceita) * 100 : 0;
   const pctClientes = metaNovosClientes > 0 ? (novosClientesCadastrados / metaNovosClientes) * 100 : 0;
 
+  // ROI da Operação = (Faturamento - Despesas) / Despesas * 100
+  // totalEntradas representa a Receita Realizada e totalSaidas representa as Despesas
+  const roiOperacao = totalSaidas > 0 ? ((totalEntradas - totalSaidas) / totalSaidas) * 100 : 0;
+
   return (
-    <div className="max-w-[1160px] mx-auto w-full px-4 sm:px-7 py-8 pb-20 md:pb-12 space-y-11">
+    <div className="p-6 space-y-6 flex-1 flex flex-col pb-20 md:pb-6 w-full">
       {/* Barra de Filtros de Período e Andon Light */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#23282B] pb-4">
         <div className="flex flex-wrap items-center gap-6">
@@ -809,8 +813,8 @@ export default function GestorDashboard() {
           </div>
         )}
 
-        {/* Readout Grid (hero + 3 cards) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-[#23282B] border border-[#23282B]">
+        {/* Readout Grid (hero + 4 cards) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-px bg-[#23282B] border border-[#23282B]">
           <ReadoutCard
             label="Receita Realizada"
             value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalEntradas)}
@@ -837,6 +841,13 @@ export default function GestorDashboard() {
             foot={`${pctClientes.toFixed(0)}% da meta`}
             footRight={metaNovosClientes > novosClientesCadastrados ? `faltam ${metaNovosClientes - novosClientesCadastrados}` : 'atingido'}
             footRightColor={pctClientes >= 100 ? 'pos' : 'warn'}
+          />
+          <ReadoutCard
+            label="ROI da Operação"
+            value={totalSaidas > 0 ? `${roiOperacao.toFixed(0)}%` : '100%'}
+            foot="retorno por R$ investido"
+            footRight={roiOperacao >= 100 ? 'excelente' : roiOperacao >= 0 ? 'positivo' : 'deficitário'}
+            footRightColor={roiOperacao >= 100 ? 'pos' : roiOperacao >= 0 ? 'warn' : 'neg'}
           />
         </div>
 
@@ -1057,98 +1068,75 @@ export default function GestorDashboard() {
             </div>
           </div>
 
-          {/* Pareto de Motivos de Perdas (Gráfico de Pareto de Verdade) */}
-          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
+          {/* Diagnóstico de Motivos de Negativa (Lost Analysis) */}
+          <div className="bg-[#14181A] p-6 space-y-5 flex flex-col justify-between">
             <div className="space-y-4">
-              <div>
-                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Gráfico de Pareto (Objeções)</h3>
-                <p className="text-xs text-[#7C868A] mt-0.5">Diagnóstico acumulado de causas de perdas</p>
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Principais Motivos de Negativa</h3>
+                <span className="text-[9px] font-mono font-bold text-[#B5504B] bg-[#B5504B]/5 border border-[#B5504B]/10 px-1.5 py-0.5 uppercase tracking-wide">
+                  Análise
+                </span>
               </div>
+              <p className="text-[10px] text-slate-500 -mt-2">Mapeamento de objeções registradas em tempo real pelas equipes de vendas</p>
 
-              {motivosFrequencia.items.length > 0 ? (
-                <div className="h-44 w-full text-[9px] font-sans">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={motivosFrequencia.items} margin={{ top: 10, right: -15, left: -25, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
-                      <XAxis 
-                        dataKey="name" 
-                        stroke="#4A5256" 
-                        fontSize={8.5} 
-                        tickLine={false} 
-                        axisLine={false}
-                        className="font-mono"
-                        tickFormatter={(value) => value.substring(0, 10) + '..'}
-                      />
+              <div className="space-y-3">
+                {motivosFrequencia.items.slice(0, 3).map((mot, index) => {
+                  // Determina dica do Kaizen de acordo com o motivo de perda
+                  const dicaKaizen = (() => {
+                    const mName = mot.name.toLowerCase();
+                    if (mName.includes('preço') || mName.includes('verba')) {
+                      return "Recomendar simulação de ROI ou parcelamento.";
+                    }
+                    if (mName.includes('concorrente')) {
+                      return "Fortalecer diferenciais competitivos e fit.";
+                    }
+                    if (mName.includes('recurso') || mName.includes('técnico')) {
+                      return "Mapear demanda recorrente para time de produto.";
+                    }
+                    if (mName.includes('timing') || mName.includes('prazo')) {
+                      return "Aplicar gatilhos de urgência comercial.";
+                    }
+                    return "Criar fluxos automatizados de reengajamento.";
+                  })();
+
+                  return (
+                    <div key={index} className="bg-[#0E1113] border border-[#23282B] p-3 space-y-2 transition-all hover:border-slate-700">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-mono font-black bg-[#B5504B]/10 border border-[#B5504B]/20 text-[#B5504B] w-4.5 h-4.5 flex items-center justify-center">
+                            #{index + 1}
+                          </span>
+                          <span className="text-[11.5px] font-bold text-[#D8DEE1] truncate max-w-[130px]">{mot.name}</span>
+                        </div>
+                        <span className="font-mono text-[10px] text-[#B5504B] font-bold">
+                          {mot.value} {mot.value === 1 ? 'venda' : 'vendas'} ({mot.pct.toFixed(0)}%)
+                        </span>
+                      </div>
                       
-                      {/* Eixo Esquerdo: Quantidade */}
-                      <YAxis 
-                        yAxisId="left"
-                        stroke="#4A5256" 
-                        fontSize={9} 
-                        tickLine={false}
-                        axisLine={false}
-                        className="font-mono"
-                        allowDecimals={false}
-                      />
-                      
-                      {/* Eixo Direito: Percentual Acumulado */}
-                      <YAxis 
-                        yAxisId="right"
-                        orientation="right"
-                        stroke="#C9A227" 
-                        fontSize={9} 
-                        tickLine={false}
-                        axisLine={false}
-                        className="font-mono"
-                        domain={[0, 100]}
-                        tickFormatter={(val) => `${val}%`}
-                      />
-                      
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#0E1113', borderColor: '#23282B', borderRadius: 0 }}
-                        itemStyle={{ fontSize: 10, fontFamily: 'monospace' }}
-                        labelStyle={{ fontSize: 9.5, fontWeight: 'bold', color: '#fff', marginBottom: 3 }}
-                        formatter={(value, name) => {
-                          if (name === "% Acumulado") return [`${Number(value).toFixed(0)}%`, name];
-                          return [value, "Negócios Perdidos"];
-                        }}
-                      />
-                      
-                      <Bar 
-                        yAxisId="left" 
-                        dataKey="value" 
-                        name="Qtd Perdas" 
-                        fill="#B5504B" 
-                        barSize={20} 
-                        radius={[1.5, 1.5, 0, 0]} 
-                      />
-                      
-                      <Line 
-                        yAxisId="right" 
-                        type="monotone" 
-                        dataKey="accPct" 
-                        name="% Acumulado" 
-                        stroke="#C9A227" 
-                        strokeWidth={1.5} 
-                        dot={{ fill: '#C9A227', r: 2.5 }} 
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
-                  <span className="text-2xl">🎉</span>
-                  <p className="text-xs text-slate-500 font-sans">Sem objeções registradas no período!</p>
-                </div>
-              )}
+                      {/* Barra de Proporção de Perdas */}
+                      <div className="h-1 bg-[#14181A] w-full flex overflow-hidden border border-[#23282B]/20">
+                        <div className="h-full bg-[#B5504B]/80" style={{ width: `${mot.pct}%` }}></div>
+                      </div>
+
+                      <div className="text-[9px] text-slate-500 font-sans leading-relaxed pt-1.5 border-t border-[#1A1F21] flex items-center gap-1">
+                        <span className="text-[#C9A227]">💡</span>
+                        <span>{dicaKaizen}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {motivosFrequencia.items.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
+                    <span className="text-2xl">🎉</span>
+                    <p className="text-xs text-slate-500 font-sans">Sem objeções ou negativas registradas no período.</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="text-[9px] text-slate-500 leading-normal border-t border-[#1A1F21] pt-3.5 font-sans">
-              💡 <strong>Regra 80/20:</strong> {motivosFrequencia.items.length > 0 ? (
-                <span>As objeções acima acumulam {motivosFrequencia.total} negócios perdidos no funil.</span>
-              ) : (
-                <span>Otimize o processo de vendas com base no feedback das propostas perdidas.</span>
-              )}
+            <div className="text-[9px] text-slate-500 leading-normal border-t border-[#1A1F21] pt-3 font-sans">
+              💡 <strong>Inteligência RevOps:</strong> As negativas acima acumulam {motivosFrequencia.total} perdas. Mapeie e atue nas principais objeções para recuperar receita!
             </div>
           </div>
         </div>
