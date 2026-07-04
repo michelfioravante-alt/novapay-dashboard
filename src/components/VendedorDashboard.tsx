@@ -26,6 +26,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   // Roteamento de Abas Desktop e Mobile
   const [activeDesktopTab, setActiveDesktopTab] = useState<'negociacoes' | 'clientes'>('negociacoes');
   const [mobileTab, setMobileTab] = useState<'dashboard' | 'sales' | 'checklist' | 'clients'>('dashboard');
+  const [viewMode, setViewMode] = useState<'lista' | 'kanban'>('kanban');
   
   // Controle de Modais / Formulários
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -163,41 +164,39 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     try {
       setLoading(true);
       
-      // 1. Carregar vendas vinculadas a este vendedor com dados dos clientes
-      const { data: salesData } = await supabase
+      // 1. Carregar vendas (Filtradas automaticamente pelo RLS no Supabase!)
+      const { data: salesData, error: salesError } = await supabase
         .from('vendas')
-        .select('*, clientes(nome)')
-        .eq('vendedor_id', vendedor.id)
-        .order('data_abertura', { ascending: false });
+        .select('*, clientes(nome, segmento)')
+        .order('created_at', { ascending: false });
 
-      // 2. Carregar lista completa de clientes cadastrados
-      const { data: clientsData } = await supabase
+      if (salesError) throw salesError;
+      setSales(salesData || []);
+
+      // 2. Carregar clientes para o seletor
+      const { data: clientsData, error: clientsError } = await supabase
         .from('clientes')
         .select('*')
         .order('nome', { ascending: true });
 
-      setSales(salesData || []);
+      if (clientsError) throw clientsError;
       setClients(clientsData || []);
 
-      // 3. Carregar ou criar tarefas do dia para o Playbook Comercial
+      // 3. Carregar tarefas do dia para o vendedor
       const todayStr = new Date().toISOString().split('T')[0];
-      const { data: existingTasks, error: tasksError } = await supabase
+      const { data: tasksData, error: tasksError } = await supabase
         .from('tarefas_vendedor')
         .select('*')
         .eq('vendedor_id', vendedor.id)
-        .eq('data_referencia', todayStr);
+        .eq('data_referencia', todayStr)
+        .order('created_at', { ascending: true });
 
       if (tasksError) throw tasksError;
 
-      if (existingTasks && existingTasks.length > 0) {
-        // Mapeia as tarefas recuperadas do banco
-        setStandardWork(existingTasks.map(t => ({
-          id: t.id,
-          text: t.descricao,
-          done: t.concluida
-        })));
+      if (tasksData && tasksData.length > 0) {
+        setStandardWork(tasksData.map(t => ({ id: t.id, text: t.descricao, done: t.concluida })));
       } else {
-        // Lógica de auto-healing/auto-seed: caso não exista, inserimos as 5 atividades recomendadas
+        // Se não houver tarefas criadas para hoje, inicializamos com a lista de boas práticas comerciais!
         const defaultTasks = [
           'Prospecção: Entrar em contato com 5 novos leads (Outbound)',
           'Follow-up: Retornar contato de propostas em aberto (Negociação)',
@@ -206,30 +205,27 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           'Planejamento: Revisar meta de vendas e comissionamento do mês'
         ];
 
-        const insertPayload = defaultTasks.map(taskText => ({
+        const insertRows = defaultTasks.map(desc => ({
           vendedor_id: vendedor.id,
-          descricao: taskText,
+          descricao: desc,
           concluida: false,
           data_referencia: todayStr
         }));
 
-        const { data: insertedTasks, error: seedError } = await supabase
+        const { data: newTasks, error: insertError } = await supabase
           .from('tarefas_vendedor')
-          .insert(insertPayload)
+          .insert(insertRows)
           .select();
 
-        if (seedError) throw seedError;
+        if (insertError) throw insertError;
 
-        if (insertedTasks) {
-          setStandardWork(insertedTasks.map(t => ({
-            id: t.id,
-            text: t.descricao,
-            done: t.concluida
-          })));
+        if (newTasks) {
+          setStandardWork(newTasks.map(t => ({ id: t.id, text: t.descricao, done: t.concluida })));
         }
       }
-    } catch (error) {
-      console.error('Erro ao buscar dados do vendedor:', error);
+
+    } catch (err: any) {
+      console.error('Erro ao carregar dados do vendedor:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -239,22 +235,16 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   useEffect(() => {
     loadData();
 
-    // Sincronização em tempo real para mudanças nas vendas do próprio vendedor
+    // Inscrição em tempo real para sincronização automática entre vendedor e gestor
     const channel = supabase
       .channel('vendedor-db-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'vendas',
-        filter: `vendedor_id=eq.${vendedor.id}` 
-      }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => {
         loadData();
       })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'clientes'
-      }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transacoes' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
         loadData();
       })
       .subscribe();
@@ -262,64 +252,68 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadData, vendedor.id]);
+  }, [loadData]);
 
-  // Handler de atualização manual
   const handleRefresh = () => {
     setRefreshing(true);
     loadData();
   };
 
-  // Toggle do status de tarefa diária (persiste direto no Supabase)
-  const handleToggleTask = async (taskId: string) => {
-    const updatedTasks = standardWork.map(task => {
-      if (task.id === taskId) {
-        const nextDone = !task.done;
-        // Atualiza assincronamente no banco em background
-        supabase
-          .from('tarefas_vendedor')
-          .update({ concluida: nextDone })
-          .eq('id', taskId)
-          .then(({ error }) => {
-            if (error) console.error('Erro ao atualizar tarefa:', error);
-          });
-        return { ...task, done: nextDone };
-      }
-      return task;
-    });
+  // Toggle Standard Work Checklist
+  const handleToggleTask = async (id: string | number) => {
+    const isUuid = typeof id === 'string';
+    
+    // Atualização otimista no estado local
+    setStandardWork(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
 
-    setStandardWork(updatedTasks);
+    if (isUuid) {
+      const task = standardWork.find(t => t.id === id);
+      if (task) {
+        try {
+          const { error } = await supabase
+            .from('tarefas_vendedor')
+            .update({ concluida: !task.done })
+            .eq('id', id);
+
+          if (error) throw error;
+        } catch (err) {
+          console.error('Erro ao atualizar status da tarefa no banco:', err);
+          // Reverter se der erro
+          setStandardWork(prev => prev.map(t => t.id === id ? { ...t, done: task.done } : t));
+        }
+      }
+    }
   };
 
-  // Cadastro Rápido de Cliente (no formulário de venda)
+  // Registrar Novo Cliente Rápido no seletor
   const handleRegisterClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClientName.trim()) return;
-
+    if (!newClientName || !newClientSegment) return;
+    
     setIsRegisteringClient(true);
     try {
       const { data, error } = await supabase
         .from('clientes')
         .insert([
-          { nome: newClientName.trim(), segmento: newClientSegment, status: 'ativo' }
+          { nome: newClientName, segmento: newClientSegment, status: 'ativo' }
         ])
-        .select();
+        .select()
+        .single();
 
       if (error) throw error;
-
-      if (data && data.length > 0) {
-        setClientId(data[0].id);
-        setNewClientName('');
-        await loadData();
+      if (data) {
+        setClients(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+        setClientId(data.id); // Selecionar o cliente recém criado
+        setNewClientName(''); // Limpar
       }
     } catch (error) {
-      console.error('Erro ao registrar cliente rápido:', error);
+      console.error('Erro ao cadastrar cliente:', error);
     } finally {
       setIsRegisteringClient(false);
     }
   };
 
-  // Criar Venda (Oportunidade Comercial)
+  // Registrar Nova Venda
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId || !contractValue || !openingDate) {
@@ -327,8 +321,8 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       return;
     }
 
-    setSubmittingSale(true);
     setFormError(null);
+    setSubmittingSale(true);
 
     try {
       const { error } = await supabase
@@ -400,6 +394,54 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       console.error('Erro ao atualizar status:', error);
     } finally {
       setSubmittingStatus(false);
+    }
+  };
+
+  // Drag & Drop handlers para o Kanban
+  const handleDragStart = (e: React.DragEvent, saleId: string) => {
+    e.dataTransfer.setData('text/plain', saleId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetStatus: string) => {
+    e.preventDefault();
+    const saleId = e.dataTransfer.getData('text/plain');
+    if (!saleId) return;
+
+    const sale = sales.find(s => s.id === saleId);
+    if (!sale) return;
+
+    if (sale.status === targetStatus) return;
+
+    if (targetStatus === 'perdido') {
+      // Abre o modal de motivo de perda
+      setSelectedSale(sale);
+      setNextStatus('perdido');
+      setLossReason(sale.motivo_perda || '');
+      setIsStatusModalOpen(true);
+    } else {
+      // Atualiza direto no Supabase
+      try {
+        const isClosed = targetStatus !== 'em_negociacao';
+        const closingDate = isClosed ? new Date().toISOString().split('T')[0] : null;
+
+        const { error } = await supabase
+          .from('vendas')
+          .update({
+            status: targetStatus,
+            data_fechamento: closingDate,
+            motivo_perda: null
+          })
+          .eq('id', sale.id);
+
+        if (error) throw error;
+        loadData();
+      } catch (err) {
+        console.error('Erro no drag & drop:', err);
+      }
     }
   };
 
@@ -604,52 +646,66 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       <div className={`grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A] flex-1 items-start ${
         activeDesktopTab === 'negociacoes' ? (mobileTab !== 'dashboard' && mobileTab !== 'clients' ? 'block' : 'hidden md:block') : 'hidden'
       }`}>
-        {/* Tabela de Oportunidades do Vendedor */}
+        {/* Tabela/Kanban de Oportunidades do Vendedor */}
         <div className={`p-6 lg:col-span-2 border-r border-b border-[#23282B] space-y-4 flex flex-col h-full ${mobileTab === 'sales' ? 'flex' : 'hidden md:flex'}`}>
-          <div>
-            <h3 className="text-sm font-bold text-white tracking-tight">Minhas Negociações Comerciais</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Exibição sob RLS ativo no Supabase (apenas seus registros comerciais)</p>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-white tracking-tight">Minhas Negociações Comerciais</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Exibição sob RLS ativo no Supabase (apenas seus registros comerciais)</p>
+            </div>
+            {/* Seletor de Modo de Exibição */}
+            <div className="flex bg-[#0E1113] border border-[#23282B] p-0.5">
+              <button
+                onClick={() => setViewMode('kanban')}
+                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                  viewMode === 'kanban' ? 'bg-[#C9A227] text-[#0E1113]' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Kanban
+              </button>
+              <button
+                onClick={() => setViewMode('lista')}
+                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                  viewMode === 'lista' ? 'bg-[#C9A227] text-[#0E1113]' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Lista
+              </button>
+            </div>
           </div>
 
           {sales.length > 0 ? (
-            <div className="overflow-x-auto">
+            viewMode === 'lista' ? (
+              <div className="overflow-x-auto flex-grow">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-[#23282B] text-slate-500 uppercase tracking-widest font-bold">
-                    <th className="py-3 pr-4">Cliente</th>
-                    <th className="py-3 px-4">Valor Contrato</th>
-                    <th className="py-3 px-4">Abertura</th>
-                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 pr-2">Cliente</th>
+                    <th className="py-3 px-2">Segmento</th>
+                    <th className="py-3 px-2">Abertura</th>
+                    <th className="py-3 px-2 text-right">Valor do Contrato</th>
+                    <th className="py-3 px-2 text-center">Status</th>
                     <th className="py-3 pl-2 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#23282B]/60 text-slate-300 font-medium">
                   {sales.map((sale) => (
                     <tr key={sale.id} className="hover:bg-[#0E1113] transition-colors">
-                      <td className="py-3.5 pr-4 text-white font-semibold flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-brand-500"></span>
-                        {sale.clientes?.nome || 'Cliente Deletado'}
-                      </td>
-                      <td className="py-3.5 px-4 text-[#7FA88C] font-bold font-mono">
+                      <td className="py-3.5 pr-2 text-white font-semibold">{sale.clientes?.nome}</td>
+                      <td className="py-3.5 px-2">{sale.clientes?.segmento}</td>
+                      <td className="py-3.5 px-2 font-mono text-slate-400">{new Date(sale.data_abertura).toLocaleDateString('pt-BR')}</td>
+                      <td className="py-3.5 px-2 text-right font-extrabold font-mono">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.valor_contrato)}
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-slate-400">
-                        {(() => {
-                          if (!sale.data_abertura) return '-';
-                          const parts = sale.data_abertura.split('T')[0].split('-');
-                          if (parts.length < 3) return sale.data_abertura;
-                          return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                        })()}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2 py-0.5 border text-[10px] font-bold uppercase font-mono ${
-                          sale.status === 'ganho' 
-                            ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]' 
+                      <td className="py-3.5 px-2 text-center">
+                        <span className={`px-2 py-0.5 text-[9px] font-bold border rounded-none ${
+                          sale.status === 'ganho'
+                            ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]'
                             : sale.status === 'perdido'
                             ? 'bg-[#B5504B]/10 border-[#B5504B]/20 text-[#B5504B]'
                             : 'bg-[#C9A227]/10 border-[#C9A227]/20 text-[#C9A227]'
                         }`}>
-                          {sale.status === 'ganho' ? 'Ganho' : sale.status === 'perdido' ? 'Perdido' : 'Negociação'}
+                          {sale.status === 'ganho' ? 'Ganho' : sale.status === 'perdido' ? 'Perdido' : 'Em Negociação'}
                         </span>
                       </td>
                       <td className="py-3.5 pl-2 text-right">
@@ -684,12 +740,106 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            ) : (
+              /* =========================================================================
+                 VISUALIZAÇÃO KANBAN BOARD (CRM) COM DRAG & DROP
+                 ========================================================================= */
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-grow pt-2 select-none">
+                {/* Colunas do Kanban */}
+                {([
+                  { statusId: 'em_negociacao', title: 'Em Negociação', color: '#C9A227', bg: 'bg-[#C9A227]/5', border: 'border-[#C9A227]/20', count: sales.filter(s => s.status === 'em_negociacao').length },
+                  { statusId: 'ganho', title: 'Ganho', color: '#7FA88C', bg: 'bg-[#7FA88C]/5', border: 'border-[#7FA88C]/20', count: sales.filter(s => s.status === 'ganho').length },
+                  { statusId: 'perdido', title: 'Perdido', color: '#B5504B', bg: 'bg-[#B5504B]/5', border: 'border-[#B5504B]/20', count: sales.filter(s => s.status === 'perdido').length }
+                ]).map(col => {
+                  const colSales = sales
+                    .filter(s => s.status === col.statusId)
+                    .sort((a, b) => new Date(b.data_abertura).getTime() - new Date(a.data_abertura).getTime());
+
+                  return (
+                    <div
+                      key={col.statusId}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, col.statusId)}
+                      className={`flex flex-col min-h-[380px] p-3 border ${col.border} ${col.bg} space-y-3 transition-colors`}
+                    >
+                      {/* Header da Coluna */}
+                      <div className="flex justify-between items-center pb-1 border-b border-[#23282B]/60">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: col.color }}></span>
+                          <span className="text-[10px] font-bold text-white uppercase tracking-wider">{col.title}</span>
+                        </div>
+                        <span className="font-mono text-[10px] text-slate-500 font-bold">({col.count})</span>
+                      </div>
+
+                      {/* Lista de Cards */}
+                      <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[420px] pr-0.5 scrollbar-thin">
+                        {colSales.map(sale => (
+                          <div
+                            key={sale.id}
+                            draggable="true"
+                            onDragStart={(e) => handleDragStart(e, sale.id)}
+                            className="bg-[#0E1113] border border-[#23282B] p-3 hover:border-slate-500 transition-all cursor-grab active:cursor-grabbing space-y-3.5"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex justify-between items-start gap-1">
+                                <span className="font-bold text-white text-[11px] leading-snug">{sale.clientes?.nome}</span>
+                                <span className="font-mono text-[9px] text-slate-500 font-medium flex-shrink-0">
+                                  {new Date(sale.data_abertura).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 capitalize">{sale.clientes?.segmento}</p>
+                            </div>
+
+                            <div className="flex justify-between items-center pt-2.5 border-t border-[#1A1F21] gap-2">
+                              <span className="font-mono text-[11.5px] font-bold text-slate-200">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(sale.valor_contrato)}
+                              </span>
+                              
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  id={`btn-kanban-notes-${sale.id}`}
+                                  onClick={() => openNotesModal(sale)}
+                                  className="p-1 bg-[#14181A] border border-[#23282B] text-[#C9A227] hover:text-white transition-colors"
+                                  title="Notas de CRM"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  id={`btn-kanban-edit-${sale.id}`}
+                                  onClick={() => openStatusModal(sale)}
+                                  className="p-1 bg-[#14181A] border border-[#23282B] text-slate-300 hover:text-white transition-colors"
+                                  title="Status & Motivo"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  id={`btn-kanban-delete-${sale.id}`}
+                                  onClick={() => handleDeleteSale(sale.id)}
+                                  className="p-1 bg-[#14181A] border border-[#23282B] text-slate-500 hover:text-red-400 hover:border-red-500/30 transition-colors"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {colSales.length === 0 && (
+                          <div className="text-center py-8 text-[10px] text-slate-600 italic">
+                            Arraste leads para cá
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
           ) : (
             <p className="text-xs text-slate-500 py-12 text-center flex-grow">Você ainda não registrou nenhuma oportunidade.</p>
           )}
         </div>
-
         {/* Playbook Comercial Checklist */}
         <div className={`p-6 border-r border-b border-[#23282B] space-y-4 ${mobileTab === 'checklist' ? 'block' : 'hidden md:block'}`}>
           <div>
@@ -805,18 +955,18 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           MODAIS E FORMULÁRIOS
           ========================================================================= */}
 
-      {/* Modal 1: Adicionar Oportunidade (Venda) */}
+      {/* Modal 1: Registrar Oportunidade */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="w-full max-w-[500px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4 animate-slide-up overflow-y-auto max-h-[90vh] scrollbar-thin">
+          <div className="w-full max-w-[500px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4 animate-slide-up">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white tracking-tight">Registrar Nova Oportunidade Comercial</h3>
+              <h3 className="text-sm font-bold text-white tracking-tight">Nova Oportunidade Comercial</h3>
               <button onClick={() => setIsAddModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
             </div>
 
             {/* Cadastro de Cliente Rápido */}
-            <form onSubmit={handleRegisterClient} className="space-y-3 bg-[#0E1113] p-4 border border-[#23282B] rounded-none">
-              <p className="text-[10px] font-bold text-[#C9A227] uppercase tracking-wider">Cadastrar Novo Cliente Rápido</p>
+            <form onSubmit={handleRegisterClient} className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
+              <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider">Cadastrar Novo Cliente Rápido</p>
               <div className="grid grid-cols-3 gap-2 items-end">
                 <div className="col-span-2 space-y-1">
                   <input
@@ -825,13 +975,13 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                     placeholder="Nome da empresa/cliente"
                     value={newClientName}
                     onChange={(e) => setNewClientName(e.target.value)}
-                    className="w-full bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isRegisteringClient}
-                  className="bg-[#14181A] hover:bg-[#23282B] text-slate-300 font-bold py-1.5 px-3 rounded-none text-xs border border-[#23282B]"
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-1.5 px-3 rounded-lg text-xs border border-slate-700/60"
                 >
                   {isRegisteringClient ? 'Criando...' : 'Cadastrar'}
                 </button>
@@ -841,7 +991,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             {/* Formulário Principal de Venda */}
             <form onSubmit={handleCreateSale} className="space-y-4">
               {formError && (
-                <div className="p-3 bg-[#B5504B]/10 border border-[#B5504B]/20 text-[#B5504B] text-xs font-semibold">
+                <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
                   {formError}
                 </div>
               )}
@@ -955,7 +1105,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                     onChange={(e) => setLossReason(e.target.value)}
                     className="w-full glass-input text-xs leading-relaxed resize-none"
                   ></textarea>
-                  <span className="text-[9px] text-[#C9A227] flex items-center gap-1">
+                  <span className="text-[9px] text-brand-400 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5" /> Este motivo alimentará o painel de diagnóstico do gestor.
                   </span>
                 </div>
@@ -973,7 +1123,6 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           </div>
         </div>
       )}
-
       {/* Barra de Navegação Mobile (Vendedor) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex items-center justify-around z-40 px-4 shadow-xl">
         <button
