@@ -323,7 +323,7 @@ export default function GestorDashboard() {
       const cname = v.clientes?.nome || 'Cliente Desconhecido';
       const cseg = v.clientes?.segmento || 'Não especificado';
       if (!clientBillingMap[cid]) {
-          clientBillingMap[cid] = { nome: cname, valor: 0, segmento: cseg };
+        clientBillingMap[cid] = { nome: cname, valor: 0, segmento: cseg };
       }
       clientBillingMap[cid].valor += val;
     });
@@ -376,6 +376,41 @@ export default function GestorDashboard() {
       Lucro: ent - sai
     };
   });
+
+  // 12. Despesas por Categoria
+  const despesasPorCategoria: { [key: string]: number } = {};
+  filteredTransacoes
+    .filter(t => t.tipo === 'saida' && t.status === 'confirmada')
+    .forEach(t => {
+      const cat = t.categoria || 'Outros';
+      despesasPorCategoria[cat] = (despesasPorCategoria[cat] || 0) + Number(t.valor);
+    });
+
+  // 13. Ticket Médio por Segmento de Cliente
+  const ticketMedioPorSegmento: { [key: string]: { valorTotal: number; quantidade: number } } = {};
+  wonVendas.forEach(v => {
+    const seg = v.clientes?.segmento || 'Não especificado';
+    if (!ticketMedioPorSegmento[seg]) {
+      ticketMedioPorSegmento[seg] = { valorTotal: 0, quantity: 0 };
+    }
+    ticketMedioPorSegmento[seg].valorTotal += Number(v.valor_contrato);
+    ticketMedioPorSegmento[seg].quantidade = (ticketMedioPorSegmento[seg].quantidade || 0) + 1;
+  });
+
+  // 14. Projeção de Faturamento Fim do Mês (Ritmo Atual)
+  const isCurrentMonth = period === '2026-07';
+  const elapsedDays = 4; // Data atual da simulação: 04/07/2026
+  const totalDays = 31; // Total de dias em Julho
+  const projectedRevenue = isCurrentMonth 
+    ? (totalEntradas / elapsedDays) * totalDays 
+    : totalEntradas;
+
+  // 15. Análise de Clientes Ativos vs Inativos (Retenção / Churn)
+  const totalClientes = clientes.length;
+  const ativos = clientes.filter(c => c.status === 'ativo').length;
+  const inativos = clientes.filter(c => c.status === 'inativo').length;
+  const taxaRetencao = totalClientes > 0 ? (ativos / totalClientes) * 100 : 100;
+  const taxaChurn = totalClientes > 0 ? (inativos / totalClientes) * 100 : 0;
 
   // =========================================================================
   // SUBMISSÃO DE PLANOS DE AÇÃO (PDCA)
@@ -739,7 +774,10 @@ export default function GestorDashboard() {
           <MetricCard
             title="Receita Realizada"
             value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
-            subtext={`${pctReceita.toFixed(1)}% atingido da meta`}
+            subtext={isCurrentMonth 
+              ? `Proj. Fim do Mês: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(projectedRevenue)}`
+              : `${pctReceita.toFixed(1)}% atingido da meta`
+            }
             icon={<DollarSign className="w-5 h-5 text-emerald-500" />}
             trend={pctReceita >= 95 ? 'up' : pctReceita >= 70 ? 'neutral' : 'down'}
             trendText={pctReceita >= 100 ? 'Meta Superada' : `${pctReceita.toFixed(0)}%`}
@@ -761,10 +799,10 @@ export default function GestorDashboard() {
           <MetricCard
             title="Novos Clientes"
             value={`${novosClientesCadastrados} clientes`}
-            subtext={`${pctClientes.toFixed(1)}% atingido da meta`}
-            icon={<UserCheck className="w-5 h-5 text-brand-500" />}
+            subtext={`Retenção de Base: ${taxaRetencao.toFixed(0)}% Ativos (Churn: ${taxaChurn.toFixed(0)}%)`}
+            icon={<UserCheck className="w-5 h-5 text-emerald-500" />}
             trend={pctClientes >= 100 ? 'up' : 'neutral'}
-            trendText={pctClientes >= 100 ? 'Meta Cumprida' : `${pctClientes.toFixed(0)}%`}
+            trendText={`${novosClientesCadastrados}/${metaNovosClientesTotal}`}
           />
         </div>
 
@@ -922,6 +960,54 @@ export default function GestorDashboard() {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Novas Métricas Analíticas Realistas (Diferenciais RevOps & Finanças) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 border-t border-l border-[#23282B] bg-[#14181A]">
+          {/* Ticket Médio por Segmento de Cliente */}
+          <div className="p-6 border-r border-b border-[#23282B] space-y-4">
+            <h3 className="text-sm font-bold text-white tracking-tight">Ticket Médio por Segmento de Cliente</h3>
+            <div className="space-y-3.5 pt-1.5">
+              {Object.entries(ticketMedioPorSegmento).map(([segmento, dados]: any) => (
+                <div key={segmento} className="flex items-center justify-between text-xs border-b border-[#23282B]/30 pb-2">
+                  <span className="font-semibold text-slate-300 capitalize">{segmento}</span>
+                  <div className="flex items-center gap-4">
+                    <span className="text-slate-500 font-mono text-[10px]">({dados.quantidade} {dados.quantidade === 1 ? 'contrato' : 'contratos'})</span>
+                    <span className="font-bold font-mono text-[#7FA88C]">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dados.valorTotal / dados.quantidade)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {Object.keys(ticketMedioPorSegmento).length === 0 && (
+                <p className="text-xs text-slate-500 text-center py-4 font-mono">Sem dados de segmento no período.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Distribuição de Despesas por Categoria */}
+          <div className="p-6 border-r border-b border-[#23282B] space-y-4">
+            <h3 className="text-sm font-bold text-white tracking-tight">Distribuição de Despesas Corporativas</h3>
+            <div className="space-y-3.5 pt-1.5">
+              {Object.entries(despesasPorCategoria).map(([categoria, valor]: any) => {
+                const pctDespesa = totalSaidas > 0 ? (valor / totalSaidas) * 100 : 0;
+                return (
+                  <div key={categoria} className="flex items-center justify-between text-xs border-b border-[#23282B]/30 pb-2">
+                    <span className="font-semibold text-slate-300">{categoria}</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-slate-500 font-mono text-[10px]">({pctDespesa.toFixed(0)}%)</span>
+                      <span className="font-bold font-mono text-[#B5504B]">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              {Object.keys(despesasPorCategoria).length === 0 && (
+                <p className="text-xs text-slate-500 text-center py-4 font-mono">Nenhuma despesa registrada no período.</p>
+              )}
             </div>
           </div>
         </div>
