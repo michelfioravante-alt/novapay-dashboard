@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
   DollarSign, Target, Percent, Plus, Edit2, Check, X, 
-  Trash2, RefreshCw, ClipboardList, AlertCircle 
+  Trash2, RefreshCw, ClipboardList, AlertCircle, MessageSquare,
+  Phone, Mail, UserCheck
 } from 'lucide-react';
 
 interface Vendedor {
@@ -22,8 +23,9 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   const [sales, setSales] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   
-  // Navegação Mobile (Aparência de App)
-  const [mobileTab, setMobileTab] = useState<'dashboard' | 'sales' | 'checklist'>('dashboard');
+  // Roteamento de Abas Desktop e Mobile
+  const [activeDesktopTab, setActiveDesktopTab] = useState<'negociacoes' | 'clientes'>('negociacoes');
+  const [mobileTab, setMobileTab] = useState<'dashboard' | 'sales' | 'checklist' | 'clients'>('dashboard');
   
   // Controle de Modais / Formulários
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -51,44 +53,151 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   // Checklist Playbook Comercial (Rotina Diária)
   const [standardWork, setStandardWork] = useState<any[]>([]);
 
+  // Estados do Cadastro de Cliente Completo (Aba dedicated)
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [clientName, setClientName] = useState('');
+  const [clientSegment, setClientSegment] = useState('Varejo');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+  const [clientStatus, setClientStatus] = useState('ativo');
+  const [submittingClient, setSubmittingClient] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  // Estados das Notas de CRM (Histórico de Follow-up)
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [selectedSaleForNotes, setSelectedSaleForNotes] = useState<any | null>(null);
+  const [notesList, setNotesList] = useState<any[]>([]);
+  const [newNoteText, setNewNoteText] = useState('');
+  const [loadingNotes, setLoadingNotes] = useState(false);
+
+  const loadNotesForSale = async (vendaId: string) => {
+    setLoadingNotes(true);
+    try {
+      const { data, error } = await supabase
+        .from('vendas_notas')
+        .select('*')
+        .eq('venda_id', vendaId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setNotesList(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar notas:', err);
+    } finally {
+      setLoadingNotes(false);
+    }
+  };
+
+  const openNotesModal = (sale: any) => {
+    setSelectedSaleForNotes(sale);
+    setNewNoteText('');
+    setNotesList([]);
+    setIsNotesModalOpen(true);
+    loadNotesForSale(sale.id);
+  };
+
+  const handleAddNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNoteText.trim() || !selectedSaleForNotes) return;
+
+    try {
+      const { error } = await supabase
+        .from('vendas_notas')
+        .insert([
+          {
+            venda_id: selectedSaleForNotes.id,
+            autor_nome: vendedor.nome,
+            texto: newNoteText.trim()
+          }
+        ]);
+
+      if (error) throw error;
+
+      setNewNoteText('');
+      loadNotesForSale(selectedSaleForNotes.id);
+    } catch (err) {
+      console.error('Erro ao adicionar nota:', err);
+    }
+  };
+
+  const handleCreateFullClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientName) return;
+
+    setSubmittingClient(true);
+    setClientError(null);
+
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .insert([
+          {
+            nome: clientName,
+            segmento: clientSegment,
+            email: clientEmail.trim() || null,
+            telefone: clientPhone.trim() || null,
+            status: clientStatus
+          }
+        ]);
+
+      if (error) throw error;
+
+      setIsClientModalOpen(false);
+      setClientName('');
+      setClientEmail('');
+      setClientPhone('');
+      setClientStatus('ativo');
+      setClientSegment('Varejo');
+      
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      setClientError(err.message || 'Erro ao cadastrar cliente.');
+    } finally {
+      setSubmittingClient(false);
+    }
+  };
+
   // Carregar dados de vendas do vendedor e clientes
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // 1. Carregar vendas (Filtradas automaticamente pelo RLS no Supabase!)
-      const { data: salesData, error: salesError } = await supabase
+      // 1. Carregar vendas vinculadas a este vendedor com dados dos clientes
+      const { data: salesData } = await supabase
         .from('vendas')
-        .select('*, clientes(nome, segmento)')
-        .order('created_at', { ascending: false });
+        .select('*, clientes(nome)')
+        .eq('vendedor_id', vendedor.id)
+        .order('data_abertura', { ascending: false });
 
-      if (salesError) throw salesError;
-      setSales(salesData || []);
-
-      // 2. Carregar clientes para o seletor
-      const { data: clientsData, error: clientsError } = await supabase
+      // 2. Carregar lista completa de clientes cadastrados
+      const { data: clientsData } = await supabase
         .from('clientes')
         .select('*')
         .order('nome', { ascending: true });
 
-      if (clientsError) throw clientsError;
+      setSales(salesData || []);
       setClients(clientsData || []);
 
-      // 3. Carregar tarefas do dia para o vendedor
+      // 3. Carregar ou criar tarefas do dia para o Playbook Comercial
       const todayStr = new Date().toISOString().split('T')[0];
-      const { data: tasksData, error: tasksError } = await supabase
+      const { data: existingTasks, error: tasksError } = await supabase
         .from('tarefas_vendedor')
         .select('*')
         .eq('vendedor_id', vendedor.id)
-        .eq('data_referencia', todayStr)
-        .order('created_at', { ascending: true });
+        .eq('data_referencia', todayStr);
 
       if (tasksError) throw tasksError;
 
-      if (tasksData && tasksData.length > 0) {
-        setStandardWork(tasksData.map(t => ({ id: t.id, text: t.descricao, done: t.concluida })));
+      if (existingTasks && existingTasks.length > 0) {
+        // Mapeia as tarefas recuperadas do banco
+        setStandardWork(existingTasks.map(t => ({
+          id: t.id,
+          text: t.descricao,
+          done: t.concluida
+        })));
       } else {
-        // Se não houver tarefas criadas para hoje, inicializamos com a lista de boas práticas comerciais!
+        // Lógica de auto-healing/auto-seed: caso não exista, inserimos as 5 atividades recomendadas
         const defaultTasks = [
           'Prospecção: Entrar em contato com 5 novos leads (Outbound)',
           'Follow-up: Retornar contato de propostas em aberto (Negociação)',
@@ -97,27 +206,30 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           'Planejamento: Revisar meta de vendas e comissionamento do mês'
         ];
 
-        const insertRows = defaultTasks.map(desc => ({
+        const insertPayload = defaultTasks.map(taskText => ({
           vendedor_id: vendedor.id,
-          descricao: desc,
+          descricao: taskText,
           concluida: false,
           data_referencia: todayStr
         }));
 
-        const { data: newTasks, error: insertError } = await supabase
+        const { data: insertedTasks, error: seedError } = await supabase
           .from('tarefas_vendedor')
-          .insert(insertRows)
+          .insert(insertPayload)
           .select();
 
-        if (insertError) throw insertError;
+        if (seedError) throw seedError;
 
-        if (newTasks) {
-          setStandardWork(newTasks.map(t => ({ id: t.id, text: t.descricao, done: t.concluida })));
+        if (insertedTasks) {
+          setStandardWork(insertedTasks.map(t => ({
+            id: t.id,
+            text: t.descricao,
+            done: t.concluida
+          })));
         }
       }
-
-    } catch (err: any) {
-      console.error('Erro ao carregar dados do vendedor:', err);
+    } catch (error) {
+      console.error('Erro ao buscar dados do vendedor:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -127,16 +239,22 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   useEffect(() => {
     loadData();
 
-    // Inscrição em tempo real para sincronização automática entre vendedor e gestor
+    // Sincronização em tempo real para mudanças nas vendas do próprio vendedor
     const channel = supabase
       .channel('vendedor-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => {
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'vendas',
+        filter: `vendedor_id=eq.${vendedor.id}` 
+      }, () => {
         loadData();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transacoes' }, () => {
-        loadData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'clientes'
+      }, () => {
         loadData();
       })
       .subscribe();
@@ -144,68 +262,64 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadData]);
+  }, [loadData, vendedor.id]);
 
+  // Handler de atualização manual
   const handleRefresh = () => {
     setRefreshing(true);
     loadData();
   };
 
-  // Toggle Standard Work Checklist
-  const handleToggleTask = async (id: string | number) => {
-    const isUuid = typeof id === 'string';
-    
-    // Atualização otimista no estado local
-    setStandardWork(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-
-    if (isUuid) {
-      const task = standardWork.find(t => t.id === id);
-      if (task) {
-        try {
-          const { error } = await supabase
-            .from('tarefas_vendedor')
-            .update({ concluida: !task.done })
-            .eq('id', id);
-
-          if (error) throw error;
-        } catch (err) {
-          console.error('Erro ao atualizar status da tarefa no banco:', err);
-          // Reverter se der erro
-          setStandardWork(prev => prev.map(t => t.id === id ? { ...t, done: task.done } : t));
-        }
+  // Toggle do status de tarefa diária (persiste direto no Supabase)
+  const handleToggleTask = async (taskId: string) => {
+    const updatedTasks = standardWork.map(task => {
+      if (task.id === taskId) {
+        const nextDone = !task.done;
+        // Atualiza assincronamente no banco em background
+        supabase
+          .from('tarefas_vendedor')
+          .update({ concluida: nextDone })
+          .eq('id', taskId)
+          .then(({ error }) => {
+            if (error) console.error('Erro ao atualizar tarefa:', error);
+          });
+        return { ...task, done: nextDone };
       }
-    }
+      return task;
+    });
+
+    setStandardWork(updatedTasks);
   };
 
-  // Registrar Novo Cliente Rápido no seletor
+  // Cadastro Rápido de Cliente (no formulário de venda)
   const handleRegisterClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClientName || !newClientSegment) return;
-    
+    if (!newClientName.trim()) return;
+
     setIsRegisteringClient(true);
     try {
       const { data, error } = await supabase
         .from('clientes')
         .insert([
-          { nome: newClientName, segmento: newClientSegment, status: 'ativo' }
+          { nome: newClientName.trim(), segmento: newClientSegment, status: 'ativo' }
         ])
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      if (data) {
-        setClients(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)));
-        setClientId(data.id); // Selecionar o cliente recém criado
-        setNewClientName(''); // Limpar
+
+      if (data && data.length > 0) {
+        setClientId(data[0].id);
+        setNewClientName('');
+        await loadData();
       }
     } catch (error) {
-      console.error('Erro ao cadastrar cliente:', error);
+      console.error('Erro ao registrar cliente rápido:', error);
     } finally {
       setIsRegisteringClient(false);
     }
   };
 
-  // Registrar Nova Venda
+  // Criar Venda (Oportunidade Comercial)
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId || !contractValue || !openingDate) {
@@ -213,8 +327,8 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       return;
     }
 
-    setFormError(null);
     setSubmittingSale(true);
+    setFormError(null);
 
     try {
       const { error } = await supabase
@@ -240,35 +354,39 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       setIsAddModalOpen(false);
 
       loadData();
-    } catch (error: any) {
-      console.error('Erro ao registrar venda:', error);
-      setFormError(error.message || 'Erro ao registrar a oportunidade comercial.');
+    } catch (err: any) {
+      console.error(err);
+      setFormError(err.message || 'Erro ao registrar a oportunidade comercial.');
     } finally {
       setSubmittingSale(false);
     }
   };
 
-  // Alterar Status da Venda
+  // Abrir Modal de Status de Venda
+  const openStatusModal = (sale: any) => {
+    setSelectedSale(sale);
+    setNextStatus(sale.status);
+    setLossReason(sale.motivo_perda || '');
+    setIsStatusModalOpen(true);
+  };
+
+  // Atualizar Status da Venda (Ganho / Perdido)
   const handleUpdateStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSale) return;
 
     setSubmittingStatus(true);
     try {
-      const updateData: any = {
-        status: nextStatus,
-        data_fechamento: new Date().toISOString().split('T')[0]
-      };
-
-      if (nextStatus === 'perdido') {
-        updateData.motivo_perda = lossReason;
-      } else {
-        updateData.motivo_perda = null;
-      }
+      const isClosed = nextStatus !== 'em_negociacao';
+      const closingDate = isClosed ? new Date().toISOString().split('T')[0] : null;
 
       const { error } = await supabase
         .from('vendas')
-        .update(updateData)
+        .update({
+          status: nextStatus,
+          data_fechamento: closingDate,
+          motivo_perda: nextStatus === 'perdido' ? lossReason : null
+        })
         .eq('id', selectedSale.id);
 
       if (error) throw error;
@@ -276,40 +394,28 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       setIsStatusModalOpen(false);
       setSelectedSale(null);
       setLossReason('');
+
       loadData();
     } catch (error) {
-      console.error('Erro ao atualizar status do negócio:', error);
+      console.error('Erro ao atualizar status:', error);
     } finally {
       setSubmittingStatus(false);
     }
   };
 
-  // Excluir Venda
+  // Deletar Venda
   const handleDeleteSale = async (id: string) => {
-    if (!window.confirm('Deseja realmente excluir esta negociação?')) return;
-
+    if (!confirm('Deseja excluir definitivamente esta oportunidade comercial?')) return;
     try {
-      const { error } = await supabase
-        .from('vendas')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await supabase.from('vendas').delete().eq('id', id);
       loadData();
     } catch (error) {
-      console.error('Erro ao excluir venda:', error);
+      console.error('Erro ao deletar venda:', error);
     }
   };
 
-  const openStatusModal = (sale: any) => {
-    setSelectedSale(sale);
-    setNextStatus(sale.status === 'em_negociacao' ? 'ganho' : sale.status);
-    setLossReason(sale.motivo_perda || '');
-    setIsStatusModalOpen(true);
-  };
-
   // =========================================================================
-  // CÁLCULO DE METRICAS INDIVIDUAIS COM REGRAS LEAN
+  // CÁLCULO DOS KPIS INDIVIDUAIS
   // =========================================================================
 
   // Consideramos apenas vendas do mês corrente para a meta individual
@@ -326,7 +432,8 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   // Realizado Comercial Individual (Faturamento total de vendas ganhas no mês)
   const faturamentoRealizado = wonSalesThisMonth.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
 
-  // Meta Individual Mapeada
+  // Meta Individual Mapeada (Usamos a meta de receita / número de vendedores ativos como simplificação de meta individual,
+  // ou definimos uma meta individual fixa padrão de R$ 25.000,00 para demonstração limpa)
   const metaIndividual = 25000.00; 
 
   // Comissão estimada: 5% sobre vendas ganhas no mês
@@ -345,11 +452,41 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
 
   return (
     <div className="p-6 space-y-6 flex-1 flex flex-col pb-20 md:pb-6">
+      {/* Barra de Abas Desktop */}
+      <div className="hidden md:flex bg-slate-900 border border-[#23282B] p-1 self-start">
+        <button
+          onClick={() => setActiveDesktopTab('negociacoes')}
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all ${
+            activeDesktopTab === 'negociacoes' 
+              ? 'bg-[#C9A227] text-[#0E1113]' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Painel Comercial & Playbook
+        </button>
+        <button
+          onClick={() => setActiveDesktopTab('clientes')}
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all ${
+            activeDesktopTab === 'clientes' 
+              ? 'bg-[#C9A227] text-[#0E1113]' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Gestão de Clientes (CRM)
+        </button>
+      </div>
+
       {/* Subheader do Vendedor */}
       <div className={`flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between ${mobileTab === 'dashboard' ? 'flex' : 'hidden md:flex'}`}>
         <div>
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Painel Comercial Individual</h2>
-          <p className="text-xs text-slate-500 mt-1">Gerencie seu funil e acompanhe suas metas em tempo real</p>
+          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            {activeDesktopTab === 'clientes' ? 'Gestão de Clientes (CRM)' : 'Painel Comercial Individual'}
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">
+            {activeDesktopTab === 'clientes' 
+              ? 'Visualize, filtre e cadastre contas na sua carteira de clientes' 
+              : 'Gerencie seu funil e acompanhe suas metas em tempo real'}
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -362,18 +499,30 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
 
-          <button
-            id="btn-open-add-sale"
-            onClick={() => setIsAddModalOpen(true)}
-            className="btn-primary py-2 text-xs flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" /> Registrar Oportunidade
-          </button>
+          {activeDesktopTab === 'clientes' ? (
+            <button
+              id="btn-open-add-client-full"
+              onClick={() => setIsClientModalOpen(true)}
+              className="btn-primary py-2 text-xs flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" /> Cadastrar Cliente
+            </button>
+          ) : (
+            <button
+              id="btn-open-add-sale"
+              onClick={() => setIsAddModalOpen(true)}
+              className="btn-primary py-2 text-xs flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" /> Registrar Oportunidade
+            </button>
+          )}
         </div>
       </div>
 
       {/* Grid de KPIs Individuais */}
-      <div className={`grid grid-cols-1 md:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A] ${mobileTab === 'dashboard' ? 'grid' : 'hidden md:grid'}`}>
+      <div className={`grid grid-cols-1 md:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A] ${
+        activeDesktopTab === 'negociacoes' ? (mobileTab === 'dashboard' ? 'grid' : 'hidden md:grid') : 'hidden'
+      }`}>
         {/* Progresso Meta Card */}
         <div className="bg-[#14181A] border-r border-b border-[#23282B] p-6 flex flex-col justify-between">
           <div className="flex items-start justify-between">
@@ -451,8 +600,10 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
         </div>
       </div>
 
-      {/* Grid Central: Lista de Vendas e Standard Work */}
-      <div className={`grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A] flex-1 items-start ${mobileTab !== 'dashboard' ? 'block' : 'hidden md:block'}`}>
+      {/* Grid Central: Lista de Vendas e Playbook */}
+      <div className={`grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A] flex-1 items-start ${
+        activeDesktopTab === 'negociacoes' ? (mobileTab !== 'dashboard' && mobileTab !== 'clients' ? 'block' : 'hidden md:block') : 'hidden'
+      }`}>
         {/* Tabela de Oportunidades do Vendedor */}
         <div className={`p-6 lg:col-span-2 border-r border-b border-[#23282B] space-y-4 flex flex-col h-full ${mobileTab === 'sales' ? 'flex' : 'hidden md:flex'}`}>
           <div>
@@ -461,40 +612,56 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           </div>
 
           {sales.length > 0 ? (
-            <div className="overflow-x-auto flex-grow">
+            <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-[#23282B] text-slate-500 uppercase tracking-widest font-bold">
-                    <th className="py-3 pr-2">Cliente</th>
-                    <th className="py-3 px-2">Segmento</th>
-                    <th className="py-3 px-2">Abertura</th>
-                    <th className="py-3 px-2 text-right">Valor do Contrato</th>
-                    <th className="py-3 px-2 text-center">Status</th>
+                    <th className="py-3 pr-4">Cliente</th>
+                    <th className="py-3 px-4">Valor Contrato</th>
+                    <th className="py-3 px-4">Abertura</th>
+                    <th className="py-3 px-4">Status</th>
                     <th className="py-3 pl-2 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#23282B]/60 text-slate-300 font-medium">
                   {sales.map((sale) => (
                     <tr key={sale.id} className="hover:bg-[#0E1113] transition-colors">
-                      <td className="py-3.5 pr-2 text-white font-semibold">{sale.clientes?.nome}</td>
-                      <td className="py-3.5 px-2">{sale.clientes?.segmento}</td>
-                      <td className="py-3.5 px-2 font-mono text-slate-400">{new Date(sale.data_abertura).toLocaleDateString('pt-BR')}</td>
-                      <td className="py-3.5 px-2 text-right font-extrabold font-mono">
+                      <td className="py-3.5 pr-4 text-white font-semibold flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-brand-500"></span>
+                        {sale.clientes?.nome || 'Cliente Deletado'}
+                      </td>
+                      <td className="py-3.5 px-4 text-[#7FA88C] font-bold font-mono">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.valor_contrato)}
                       </td>
-                      <td className="py-3.5 px-2 text-center">
-                        <span className={`px-2 py-0.5 text-[9px] font-bold border rounded-none ${
-                          sale.status === 'ganho'
-                            ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]'
+                      <td className="py-3.5 px-4 font-mono text-slate-400">
+                        {(() => {
+                          if (!sale.data_abertura) return '-';
+                          const parts = sale.data_abertura.split('T')[0].split('-');
+                          if (parts.length < 3) return sale.data_abertura;
+                          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        })()}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2 py-0.5 border text-[10px] font-bold uppercase font-mono ${
+                          sale.status === 'ganho' 
+                            ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]' 
                             : sale.status === 'perdido'
                             ? 'bg-[#B5504B]/10 border-[#B5504B]/20 text-[#B5504B]'
                             : 'bg-[#C9A227]/10 border-[#C9A227]/20 text-[#C9A227]'
                         }`}>
-                          {sale.status === 'ganho' ? 'Ganho' : sale.status === 'perdido' ? 'Perdido' : 'Em Negociação'}
+                          {sale.status === 'ganho' ? 'Ganho' : sale.status === 'perdido' ? 'Perdido' : 'Negociação'}
                         </span>
                       </td>
                       <td className="py-3.5 pl-2 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            id={`btn-open-notes-${sale.id}`}
+                            onClick={() => openNotesModal(sale)}
+                            className="p-1 bg-[#0E1113] border border-[#23282B] rounded-none text-[#C9A227] hover:text-white transition-colors"
+                            title="Notas de Acompanhamento (CRM)"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             id={`btn-edit-status-${sale.id}`}
                             onClick={() => openStatusModal(sale)}
@@ -562,62 +729,127 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
         </div>
       </div>
 
+      {/* Painel de Gestão de Clientes (CRM) */}
+      <div className={`border-t border-l border-[#23282B] bg-[#14181A] flex-1 ${
+        activeDesktopTab === 'clientes' ? (mobileTab === 'clients' ? 'block' : 'hidden md:block') : (mobileTab === 'clients' ? 'block' : 'hidden')
+      }`}>
+        <div className="p-6 border-r border-b border-[#23282B] space-y-4">
+          <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5 font-sans">
+                <UserCheck className="w-4 h-4 text-brand-400" /> Carteira de Clientes Cadastrados
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">Visualize e cadastre informações cadastrais de clientes na sua conta de vendas</p>
+            </div>
+            <button
+              onClick={() => setIsClientModalOpen(true)}
+              className="md:hidden px-3 py-1.5 bg-[#0E1113] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center gap-1"
+            >
+              <Plus className="w-3 h-3" /> Novo
+            </button>
+          </div>
+
+          {clients.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-[#23282B] text-slate-500 uppercase tracking-widest font-bold">
+                    <th className="py-3 pr-4">Nome da Empresa</th>
+                    <th className="py-3 px-4">Segmento</th>
+                    <th className="py-3 px-4">E-mail</th>
+                    <th className="py-3 px-4">Telefone</th>
+                    <th className="py-3 pl-4 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#23282B]/60 text-slate-300 font-medium">
+                  {clients.map((client, index) => (
+                    <tr key={index} className="hover:bg-[#0E1113] transition-colors">
+                      <td className="py-3.5 pr-4 text-white font-semibold flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-brand-500"></span>
+                        {client.nome}
+                      </td>
+                      <td className="py-3.5 px-4 capitalize">{client.segmento}</td>
+                      <td className="py-3.5 px-4 font-mono text-slate-400">
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-slate-500" />
+                          {client.email || <span className="text-slate-600 italic font-sans">não informado</span>}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-400">
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-slate-500" />
+                          {client.telefone || <span className="text-slate-600 italic font-sans">não informado</span>}
+                        </div>
+                      </td>
+                      <td className="py-3.5 pl-4 text-right">
+                        <span className={`px-2 py-0.5 border text-[10px] font-bold uppercase font-mono ${
+                          client.status === 'ativo' 
+                            ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]' 
+                            : 'bg-[#B5504B]/10 border-[#B5504B]/20 text-[#B5504B]'
+                        }`}>
+                          {client.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 py-12 text-center font-mono">Nenhum cliente cadastrado no banco de dados.</p>
+          )}
+        </div>
+      </div>
+
       {/* =========================================================================
           MODAIS E FORMULÁRIOS
           ========================================================================= */}
 
-      {/* Modal 1: Registrar Oportunidade */}
+      {/* Modal 1: Adicionar Oportunidade (Venda) */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-[500px] border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4 rounded-none">
-            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Plus className="w-4.5 h-4.5 text-brand-500" /> Registrar Negociação Comercial
-              </h3>
-              <button 
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setFormError(null);
-                }} 
-                className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="w-full max-w-[500px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4 animate-slide-up overflow-y-auto max-h-[90vh] scrollbar-thin">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-bold text-white tracking-tight">Registrar Nova Oportunidade Comercial</h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
             </div>
 
-            {formError && (
-              <div className="p-3 bg-[#B5504B]/10 border border-[#B5504B]/20 text-[#B5504B] text-xs font-semibold leading-relaxed">
-                {formError}
-              </div>
-            )}
-
-            {/* Cadastro Rápido de Cliente */}
+            {/* Cadastro de Cliente Rápido */}
             <form onSubmit={handleRegisterClient} className="space-y-3 bg-[#0E1113] p-4 border border-[#23282B] rounded-none">
-              <p className="text-[10px] font-bold text-[#C9A227] uppercase tracking-wider">Cliente não cadastrado? Adicione rápido:</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  required
-                  placeholder="Nome da empresa ou parceiro"
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
-                  className="flex-1 bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
-                />
+              <p className="text-[10px] font-bold text-[#C9A227] uppercase tracking-wider">Cadastrar Novo Cliente Rápido</p>
+              <div className="grid grid-cols-3 gap-2 items-end">
+                <div className="col-span-2 space-y-1">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nome da empresa/cliente"
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    className="w-full bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
+                  />
+                </div>
                 <button
                   type="submit"
                   disabled={isRegisteringClient}
-                  className="btn-secondary px-3 py-1.5 text-xs font-bold uppercase tracking-wider"
+                  className="bg-[#14181A] hover:bg-[#23282B] text-slate-300 font-bold py-1.5 px-3 rounded-none text-xs border border-[#23282B]"
                 >
                   {isRegisteringClient ? 'Criando...' : 'Cadastrar'}
                 </button>
               </div>
             </form>
 
+            {/* Formulário Principal de Venda */}
             <form onSubmit={handleCreateSale} className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="select-sale-client" className="text-[10px] font-bold text-slate-400 uppercase">Selecione o Cliente *</label>
+              {formError && (
+                <div className="p-3 bg-[#B5504B]/10 border border-[#B5504B]/20 text-[#B5504B] text-xs font-semibold">
+                  {formError}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label htmlFor="client-select" className="text-[10px] font-bold text-slate-400 uppercase">Selecione o Cliente</label>
                 <select
-                  id="select-sale-client"
+                  id="client-select"
                   required
                   value={clientId}
                   onChange={(e) => setClientId(e.target.value)}
@@ -630,46 +862,45 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label htmlFor="input-sale-val" className="text-[10px] font-bold text-slate-400 uppercase">Valor de Contrato (R$) *</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label htmlFor="input-contract-value" className="text-[10px] font-bold text-slate-400 uppercase">Valor do Contrato (R$)</label>
                   <input
-                    id="input-sale-val"
+                    id="input-contract-value"
                     type="number"
                     step="0.01"
                     required
-                    placeholder="Ex: 5000.00"
+                    placeholder="Ex: 15000.00"
                     value={contractValue}
                     onChange={(e) => setContractValue(e.target.value)}
                     className="w-full glass-input text-xs"
                   />
                 </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="select-sale-status" className="text-[10px] font-bold text-slate-400 uppercase">Status Inicial *</label>
-                  <select
-                    id="select-sale-status"
+                <div className="space-y-1">
+                  <label htmlFor="input-opening-date" className="text-[10px] font-bold text-slate-400 uppercase">Data de Abertura</label>
+                  <input
+                    id="input-opening-date"
+                    type="date"
                     required
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
+                    value={openingDate}
+                    onChange={(e) => setOpeningDate(e.target.value)}
                     className="w-full glass-input text-xs"
-                  >
-                    <option value="em_negociacao">Em Negociação</option>
-                    <option value="ganho">Ganho (Fechado)</option>
-                  </select>
+                  />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="input-sale-date" className="text-[10px] font-bold text-slate-400 uppercase">Data de Abertura *</label>
-                <input
-                  id="input-sale-date"
-                  type="date"
-                  required
-                  value={openingDate}
-                  onChange={(e) => setOpeningDate(e.target.value)}
+              <div className="space-y-1">
+                <label htmlFor="status-select" className="text-[10px] font-bold text-slate-400 uppercase">Status Inicial</label>
+                <select
+                  id="status-select"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
                   className="w-full glass-input text-xs"
-                />
+                >
+                  <option value="em_negociacao">Em Negociação</option>
+                  <option value="ganho">Ganho (Faturamento Imediato)</option>
+                  <option value="perdido">Perdido</option>
+                </select>
               </div>
 
               <button
@@ -678,71 +909,55 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                 disabled={submittingSale}
                 className="w-full btn-primary py-2.5 text-xs mt-2"
               >
-                {submittingSale ? 'Registrando...' : 'Registrar Oportunidade'}
+                {submittingSale ? 'Registrando...' : 'Registrar Oportunidade Comercial'}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Modal 2: Alterar Status da Venda (PDCA / Kaizen Trigger para Perdas) */}
+      {/* Modal 2: Alterar Status de Venda existente (com motivo de perda) */}
       {isStatusModalOpen && selectedSale && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-[450px] border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4 rounded-none">
-            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Edit2 className="w-4.5 h-4.5 text-brand-500" /> Atualizar Status Comercial
-              </h3>
-              <button 
-                onClick={() => {
-                  setIsStatusModalOpen(false);
-                  setSelectedSale(null);
-                  setLossReason('');
-                }} 
-                className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-3 bg-[#0E1113] border border-[#23282B] text-xs text-slate-300">
-              <p><strong>Cliente:</strong> {selectedSale.clientes?.nome}</p>
-              <p className="mt-1"><strong>Valor Original:</strong> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedSale.valor_contrato)}</p>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="w-full max-w-[450px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Atualizar Status de Negociação</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Cliente: {selectedSale.clientes?.nome}</p>
+              </div>
+              <button onClick={() => setIsStatusModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
             </div>
 
             <form onSubmit={handleUpdateStatus} className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="select-update-status" className="text-[10px] font-bold text-slate-400 uppercase">Novo Status *</label>
+              <div className="space-y-1">
+                <label htmlFor="next-status-select" className="text-[10px] font-bold text-slate-400 uppercase">Selecione o Status</label>
                 <select
-                  id="select-update-status"
-                  required
+                  id="next-status-select"
                   value={nextStatus}
                   onChange={(e) => setNextStatus(e.target.value)}
                   className="w-full glass-input text-xs"
                 >
-                  <option value="ganho">Ganho (Venda Fechada)</option>
-                  <option value="perdido">Perdido (Venda Descartada)</option>
+                  <option value="em_negociacao">Em Negociação</option>
+                  <option value="ganho">Ganho (Gerar Entrada Financeira)</option>
+                  <option value="perdido">Perdido (Diagnóstico de Perda)</option>
                 </select>
               </div>
 
               {nextStatus === 'perdido' && (
                 <div className="space-y-1.5">
-                  <label htmlFor="select-loss-reason" className="text-[10px] font-bold text-[#B5504B] uppercase">Motivo da Perda (Requisito Kaizen) *</label>
-                  <select
-                    id="select-loss-reason"
+                  <label htmlFor="loss-reason-textarea" className="text-[10px] font-bold text-slate-400 uppercase">Motivo da Perda (Why?)</label>
+                  <textarea
+                    id="loss-reason-textarea"
                     required
+                    rows={3}
+                    placeholder="Detalhamento do porquê o negócio foi perdido (Preço, Concorrente, Prazo, etc.)"
                     value={lossReason}
                     onChange={(e) => setLossReason(e.target.value)}
-                    className="w-full glass-input text-xs text-white"
-                  >
-                    <option value="">Selecione o principal desvio comercial...</option>
-                    <option value="Preço Alto">Preço Alto / Sem Fit Financeiro</option>
-                    <option value="Falta de Recurso Técnico">Falta de Recurso Técnico do Produto</option>
-                    <option value="Perdido para Concorrência">Perdido para Concorrência</option>
-                    <option value="Decisão Adiada">Decisão Adiada pelo Cliente</option>
-                    <option value="Sem Contato / Ghosting">Sem Resposta do Lead (Ghosting)</option>
-                  </select>
-                  <p className="text-[9px] text-slate-500 mt-1">Este dado alimentará automaticamente o painel de 5 Porquês do gestor.</p>
+                    className="w-full glass-input text-xs leading-relaxed resize-none"
+                  ></textarea>
+                  <span className="text-[9px] text-[#C9A227] flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" /> Este motivo alimentará o painel de diagnóstico do gestor.
+                  </span>
                 </div>
               )}
 
@@ -752,43 +967,207 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                 disabled={submittingStatus}
                 className="w-full btn-primary py-2.5 text-xs mt-2"
               >
-                {submittingStatus ? 'Sincronizando...' : 'Confirmar Transição de Status'}
+                {submittingStatus ? 'Sincronizando...' : 'Atualizar Oportunidade'}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Barra de Navegação Mobile (Estilo App) */}
+      {/* Barra de Navegação Mobile (Vendedor) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex items-center justify-around z-40 px-4 shadow-xl">
         <button
           onClick={() => setMobileTab('dashboard')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
-            mobileTab === 'dashboard' ? 'text-[#C9A227]' : 'text-slate-400'
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'dashboard' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Target className="w-5 h-5" />
-          <span>Meta</span>
+          <span className="text-[10px] font-bold font-sans">Resumo</span>
         </button>
+
         <button
           onClick={() => setMobileTab('sales')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
-            mobileTab === 'sales' ? 'text-[#C9A227]' : 'text-slate-400'
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'sales' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <DollarSign className="w-5 h-5" />
-          <span>Funil</span>
+          <span className="text-[10px] font-bold font-sans">Funil</span>
         </button>
+
+        <button
+          onClick={() => setMobileTab('clients')}
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'clients' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <UserCheck className="w-5 h-5" />
+          <span className="text-[10px] font-bold font-sans">Clientes</span>
+        </button>
+
         <button
           onClick={() => setMobileTab('checklist')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
-            mobileTab === 'checklist' ? 'text-[#C9A227]' : 'text-slate-400'
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'checklist' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <ClipboardList className="w-5 h-5" />
-          <span>Playbook</span>
+          <span className="text-[10px] font-bold font-sans">Playbook</span>
         </button>
       </div>
+
+      {/* Modal 3: Cadastro Completo de Cliente */}
+      {isClientModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-[400px] glass-panel border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4">
+            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                <UserCheck className="w-4.5 h-4.5 text-[#C9A227]" /> Cadastrar Novo Cliente
+              </h3>
+              <button onClick={() => setIsClientModalOpen(false)} className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {clientError && (
+              <div className="p-3 bg-[#B5504B]/10 border border-[#B5504B]/20 text-[#B5504B] text-xs font-semibold leading-relaxed">
+                {clientError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateFullClient} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="full-client-name" className="text-[10px] font-bold text-slate-400 uppercase">Nome da Empresa / Cliente</label>
+                <input
+                  id="full-client-name"
+                  type="text"
+                  required
+                  placeholder="Ex: Acme Corp"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="full-client-segment" className="text-[10px] font-bold text-slate-400 uppercase">Segmento de Mercado</label>
+                <select
+                  id="full-client-segment"
+                  value={clientSegment}
+                  onChange={(e) => setClientSegment(e.target.value)}
+                  className="w-full glass-input text-xs"
+                >
+                  <option value="Varejo">Varejo</option>
+                  <option value="Tecnologia">Tecnologia</option>
+                  <option value="Serviços">Serviços</option>
+                  <option value="Indústria">Indústria</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="full-client-email" className="text-[10px] font-bold text-slate-400 uppercase">E-mail para Contato</label>
+                <input
+                  id="full-client-email"
+                  type="email"
+                  placeholder="Ex: financeiro@acme.com"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="full-client-phone" className="text-[10px] font-bold text-slate-400 uppercase">Telefone / WhatsApp</label>
+                <input
+                  id="full-client-phone"
+                  type="text"
+                  placeholder="Ex: (11) 99999-9999"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <button
+                id="btn-save-full-client-submit"
+                type="submit"
+                disabled={submittingClient}
+                className="w-full btn-primary py-2.5 text-xs mt-2"
+              >
+                {submittingClient ? 'Sincronizando...' : 'Cadastrar Cliente'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: CRM Notas de Follow-up */}
+      {isNotesModalOpen && selectedSaleForNotes && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-[500px] glass-panel border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4">
+            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                  <MessageSquare className="w-4.5 h-4.5 text-[#C9A227]" /> Notas de CRM & Follow-up
+                </h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Cliente: {selectedSaleForNotes.clientes?.nome}</p>
+              </div>
+              <button onClick={() => setIsNotesModalOpen(false)} className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Listagem de Notas */}
+            <div className="max-h-48 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
+              {loadingNotes ? (
+                <p className="text-xs text-slate-500 text-center py-4 font-mono">Carregando histórico...</p>
+              ) : notesList.length > 0 ? (
+                notesList.map((note) => (
+                  <div key={note.id} className="bg-[#0E1113] p-3 border border-[#23282B] space-y-1">
+                    <div className="flex justify-between items-center text-[9px] text-slate-500 font-mono font-bold uppercase">
+                      <span className="text-[#C9A227]">{note.autor_nome}</span>
+                      <span>
+                        {new Date(note.created_at).toLocaleDateString('pt-BR')} {new Date(note.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed font-sans">{note.texto}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-slate-500 text-center py-6 italic font-sans">Nenhuma anotação de follow-up registrada para este negócio.</p>
+              )}
+            </div>
+
+            <div className="h-px bg-[#23282B] my-2"></div>
+
+            {/* Formulário para adicionar nova nota */}
+            <form onSubmit={handleAddNote} className="space-y-3 pt-1">
+              <div className="space-y-1">
+                <label htmlFor="new-crm-note-text" className="text-[10px] font-bold text-slate-400 uppercase">Nova Anotação de Contato</label>
+                <textarea
+                  id="new-crm-note-text"
+                  required
+                  rows={3}
+                  placeholder="Registre o que foi alinhado com o cliente neste follow-up..."
+                  value={newNoteText}
+                  onChange={(e) => setNewNoteText(e.target.value)}
+                  className="w-full glass-input text-xs leading-relaxed resize-none"
+                ></textarea>
+              </div>
+
+              <button
+                id="btn-save-crm-note"
+                type="submit"
+                className="w-full btn-primary py-2 text-xs flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" /> Adicionar Nota de Histórico
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
