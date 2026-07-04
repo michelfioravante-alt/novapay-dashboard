@@ -809,14 +809,14 @@ export default function GestorDashboard() {
         {/* Gráfico de Histórico e Pipeline */}
         <div className="grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A]">
           {/* Gráfico de Evolução 6 Meses */}
-          <div className="p-6 lg:col-span-2 border-r border-b border-[#23282B] space-y-4">
+          <div className="p-4 sm:p-6 lg:col-span-2 border-r border-b border-[#23282B] space-y-4">
             <div>
               <h3 className="text-sm font-bold text-white tracking-tight">Fluxo de Caixa Acumulado (Últimos 6 meses)</h3>
               <p className="text-xs text-slate-500 mt-0.5">Visão histórica consolidada de Faturamento e Despesas Operacionais</p>
             </div>
             <div className="h-72 w-full text-xs">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartHistoricoData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={chartHistoricoData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorFat" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#7FA88C" stopOpacity={0.2}/>
@@ -829,8 +829,15 @@ export default function GestorDashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#23282B" />
                   <XAxis dataKey="mesLabel" stroke="#475569" />
-                  <YAxis stroke="#475569" />
-                  <Tooltip contentStyle={{ backgroundColor: '#14181A', borderColor: '#23282B', color: '#f1f5f9' }} />
+                  <YAxis 
+                    stroke="#475569" 
+                    tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(val)}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#14181A', borderColor: '#23282B' }} 
+                    itemStyle={{ color: '#cbd5e1' }} 
+                    labelStyle={{ color: '#ffffff' }}
+                  />
                   <Legend verticalAlign="top" height={36} iconType="square" />
                   <Area type="monotone" dataKey="Faturamento" name="Faturamento (Entradas)" stroke="#7FA88C" strokeWidth={2} fillOpacity={1} fill="url(#colorFat)" />
                   <Area type="monotone" dataKey="Despesas" name="Despesas (Saídas)" stroke="#B5504B" strokeWidth={1.5} fillOpacity={1} fill="url(#colorDesp)" />
@@ -840,7 +847,7 @@ export default function GestorDashboard() {
           </div>
 
           {/* Gráfico do Pipeline de Vendas */}
-          <div className="p-6 border-r border-b border-[#23282B] space-y-4 flex flex-col justify-between">
+          <div className="p-4 sm:p-6 border-r border-b border-[#23282B] space-y-4 flex flex-col justify-between">
             <div>
               <h3 className="text-sm font-bold text-white tracking-tight">Pipeline de Vendas (Funil Comercial)</h3>
               <p className="text-xs text-slate-500 mt-0.5">Distribuição do status das negociações do período</p>
@@ -863,7 +870,11 @@ export default function GestorDashboard() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#14181A', borderColor: '#23282B', color: '#f1f5f9' }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#14181A', borderColor: '#23282B' }} 
+                    itemStyle={{ color: '#cbd5e1' }} 
+                    labelStyle={{ color: '#ffffff' }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute flex flex-col items-center justify-center">
