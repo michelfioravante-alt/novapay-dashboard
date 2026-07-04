@@ -46,7 +46,7 @@ function ReadoutCard({ label, value, foot, footRight, footRightColor, hero, onCl
   );
 }
 
-export default function GestorDashboard() {
+export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number }) {
   const [period, setPeriod] = useState<string>('2026-07'); // Mês atual por padrão
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -188,6 +188,17 @@ export default function GestorDashboard() {
       supabase.removeChannel(channel);
     };
   }, [loadData]);
+
+  // Resetar dashboard ao clicar no logo (resetKey vem do App.tsx)
+  useEffect(() => {
+    if (resetKey === 0) return; // Ignora a montagem inicial
+    setSelectedVendedorFilter('todos');
+    setPeriod('2026-07');
+    setActiveKpiFilter('receita');
+    setMobileTab('dashboard');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadData();
+  }, [resetKey]);
 
   // Handler de atualização manual
   const handleRefresh = () => {
@@ -767,11 +778,11 @@ export default function GestorDashboard() {
               id="filter-vendedor-select"
               value={selectedVendedorFilter}
               onChange={(e) => setSelectedVendedorFilter(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-white py-1 focus:outline-none rounded-none border-none cursor-pointer"
+              className="bg-[#14181A] text-xs font-semibold text-white py-1 focus:outline-none rounded-none border-none cursor-pointer"
             >
-              <option value="todos">Todos os Vendedores</option>
+              <option value="todos" className="bg-[#0E1113] text-white">Todos os Vendedores</option>
               {vendedores.map(v => (
-                <option key={v.id} value={v.id} className="bg-[#14181A]">{v.nome}</option>
+                <option key={v.id} value={v.id} className="bg-[#0E1113] text-white">{v.nome}</option>
               ))}
             </select>
           </div>

@@ -17,6 +17,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Vendedor | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resetKey, setResetKey] = useState(0);
+
+  const handleLogoClick = () => {
+    setResetKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     // 1. Obter sessão atual de autenticação
@@ -116,8 +121,8 @@ function App() {
       {/* Header Corporativo Global */}
       <header className="border-b border-[#23282B] bg-[#0E1113] py-5 px-4 sm:px-7 sticky top-0 z-50">
         <div className="max-w-[1160px] mx-auto flex justify-between items-center flex-wrap gap-3">
-          <div className="flex items-baseline gap-2.5">
-            <span className="font-bold text-white text-sm sm:text-base tracking-tight">NovaPay</span>
+          <div className="flex items-baseline gap-2.5 cursor-pointer select-none" onClick={handleLogoClick}>
+            <span className="font-bold text-white text-sm sm:text-base tracking-tight hover:text-[#C9A227] transition-colors">NovaPay</span>
             <span className="text-[#4A5256] text-xs">/</span>
             <span className="text-xs text-slate-400">Controle de Fluxo e Qualidade Comercial</span>
           </div>
@@ -150,9 +155,9 @@ function App() {
         )}
         
         {profile.perfil === 'gestor' ? (
-          <GestorDashboard />
+          <GestorDashboard resetKey={resetKey} />
         ) : (
-          <VendedorDashboard vendedor={profile} />
+          <VendedorDashboard vendedor={profile} resetKey={resetKey} />
         )}
       </main>
 

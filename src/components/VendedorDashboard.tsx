@@ -18,9 +18,10 @@ interface Vendedor {
 
 interface VendedorDashboardProps {
   vendedor: Vendedor;
+  resetKey?: number;
 }
 
-export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) {
+export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sales, setSales] = useState<any[]>([]);
@@ -242,6 +243,18 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       supabase.removeChannel(channel);
     };
   }, [loadData]);
+
+  // Resetar dashboard ao clicar no logo (resetKey vem do App.tsx)
+  useEffect(() => {
+    if (resetKey === 0) return; // Ignora a montagem inicial
+    setActiveDesktopTab('negociacoes');
+    setMobileTab('dashboard');
+    setSelectedSaleForPlaybook(null);
+    setIsDetailModalOpen(false);
+    setSelectedSaleForDetail(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadData();
+  }, [resetKey]);
 
   const handleRefresh = () => {
     setRefreshing(true);
