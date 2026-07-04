@@ -28,6 +28,9 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   const [mobileTab, setMobileTab] = useState<'dashboard' | 'sales' | 'checklist' | 'clients'>('dashboard');
   const [viewMode, setViewMode] = useState<'lista' | 'kanban'>('kanban');
   
+  // Estado do Playbook Dinâmico por Negócio
+  const [selectedSaleForPlaybook, setSelectedSaleForPlaybook] = useState<any | null>(null);
+  
   // Controle de Modais / Formulários
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -51,8 +54,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   const [newClientSegment] = useState('Varejo');
   const [isRegisteringClient, setIsRegisteringClient] = useState(false);
 
-  // Checklist Playbook Comercial (Rotina Diária)
-  const [standardWork, setStandardWork] = useState<any[]>([]);
+  // Checklist Playbook Comercial (Rotina Diária mockada foi removida em prol do Playbook dinâmico por negócio)
 
   // Estados do Cadastro de Cliente Completo (Aba dedicated)
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -173,6 +175,12 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       if (salesError) throw salesError;
       setSales(salesData || []);
 
+      // Atualizar o selectedSaleForPlaybook se ele já estiver selecionado para manter os dados atualizados
+      if (selectedSaleForPlaybook) {
+        const updated = (salesData || []).find(s => s.id === selectedSaleForPlaybook.id);
+        if (updated) setSelectedSaleForPlaybook(updated);
+      }
+
       // 2. Carregar clientes para o seletor
       const { data: clientsData, error: clientsError } = await supabase
         .from('clientes')
@@ -181,48 +189,6 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
 
       if (clientsError) throw clientsError;
       setClients(clientsData || []);
-
-      // 3. Carregar tarefas do dia para o vendedor
-      const todayStr = new Date().toISOString().split('T')[0];
-      const { data: tasksData, error: tasksError } = await supabase
-        .from('tarefas_vendedor')
-        .select('*')
-        .eq('vendedor_id', vendedor.id)
-        .eq('data_referencia', todayStr)
-        .order('created_at', { ascending: true });
-
-      if (tasksError) throw tasksError;
-
-      if (tasksData && tasksData.length > 0) {
-        setStandardWork(tasksData.map(t => ({ id: t.id, text: t.descricao, done: t.concluida })));
-      } else {
-        // Se não houver tarefas criadas para hoje, inicializamos com a lista de boas práticas comerciais!
-        const defaultTasks = [
-          'Prospecção: Entrar em contato com 5 novos leads (Outbound)',
-          'Follow-up: Retornar contato de propostas em aberto (Negociação)',
-          'Reuniões: Conduzir reuniões de diagnóstico ou demonstração agendadas',
-          'Atualização de CRM: Registrar motivos de perda das propostas recusadas',
-          'Planejamento: Revisar meta de vendas e comissionamento do mês'
-        ];
-
-        const insertRows = defaultTasks.map(desc => ({
-          vendedor_id: vendedor.id,
-          descricao: desc,
-          concluida: false,
-          data_referencia: todayStr
-        }));
-
-        const { data: newTasks, error: insertError } = await supabase
-          .from('tarefas_vendedor')
-          .insert(insertRows)
-          .select();
-
-        if (insertError) throw insertError;
-
-        if (newTasks) {
-          setStandardWork(newTasks.map(t => ({ id: t.id, text: t.descricao, done: t.concluida })));
-        }
-      }
 
     } catch (err: any) {
       console.error('Erro ao carregar dados do vendedor:', err);
@@ -259,31 +225,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     loadData();
   };
 
-  // Toggle Standard Work Checklist
-  const handleToggleTask = async (id: string | number) => {
-    const isUuid = typeof id === 'string';
-    
-    // Atualização otimista no estado local
-    setStandardWork(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
 
-    if (isUuid) {
-      const task = standardWork.find(t => t.id === id);
-      if (task) {
-        try {
-          const { error } = await supabase
-            .from('tarefas_vendedor')
-            .update({ concluida: !task.done })
-            .eq('id', id);
-
-          if (error) throw error;
-        } catch (err) {
-          console.error('Erro ao atualizar status da tarefa no banco:', err);
-          // Reverter se der erro
-          setStandardWork(prev => prev.map(t => t.id === id ? { ...t, done: task.done } : t));
-        }
-      }
-    }
-  };
 
   // Registrar Novo Cliente Rápido no seletor
   const handleRegisterClient = async (e: React.FormEvent) => {
@@ -313,7 +255,31 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     }
   };
 
-  // Registrar Nova Venda
+  // Modelos de Playbooks por Estágio
+  const getPlaybookTemplates = (status: string) => {
+    if (status === 'ganho') {
+      return [
+        { text: 'Coleta de dados cadastrais para faturamento', done: false },
+        { text: 'Kick-off de implantação agendado com o cliente', done: false },
+        { text: 'E-mail de onboarding com manuais enviado', done: false }
+      ];
+    } else if (status === 'perdido') {
+      return [
+        { text: 'Diagnóstico dos 5 porquês preenchido', done: false },
+        { text: 'Registro do concorrente que ganhou o negócio', done: false },
+        { text: 'Tarefa de reengajamento comercial em 6 meses agendada', done: false }
+      ];
+    } else {
+      return [
+        { text: 'Reunião de Diagnóstico de necessidades realizada', done: false },
+        { text: 'Mapeamento de influenciadores e decisores', done: false },
+        { text: 'Proposta Comercial enviada e alinhada', done: false },
+        { text: 'Follow-up de fechamento agendado em 48h', done: false }
+      ];
+    }
+  };
+
+  // Registrar Nova Venda com Playbook Inicial
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId || !contractValue || !openingDate) {
@@ -325,6 +291,8 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     setSubmittingSale(true);
 
     try {
+      const initialChecklist = getPlaybookTemplates(status);
+
       const { error } = await supabase
         .from('vendas')
         .insert([
@@ -334,7 +302,8 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             valor_contrato: parseFloat(contractValue),
             data_abertura: openingDate,
             status: status,
-            data_fechamento: status !== 'em_negociacao' ? new Date().toISOString().split('T')[0] : null
+            data_fechamento: status !== 'em_negociacao' ? new Date().toISOString().split('T')[0] : null,
+            playbook_checklist: initialChecklist
           }
         ]);
 
@@ -364,7 +333,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     setIsStatusModalOpen(true);
   };
 
-  // Atualizar Status da Venda (Ganho / Perdido)
+  // Atualizar Status da Venda (Ganho / Perdido) e resetar Playbook para o novo estágio
   const handleUpdateStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSale) return;
@@ -373,13 +342,15 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     try {
       const isClosed = nextStatus !== 'em_negociacao';
       const closingDate = isClosed ? new Date().toISOString().split('T')[0] : null;
+      const nextPlaybook = getPlaybookTemplates(nextStatus);
 
       const { error } = await supabase
         .from('vendas')
         .update({
           status: nextStatus,
           data_fechamento: closingDate,
-          motivo_perda: nextStatus === 'perdido' ? lossReason : null
+          motivo_perda: nextStatus === 'perdido' ? lossReason : null,
+          playbook_checklist: nextPlaybook
         })
         .eq('id', selectedSale.id);
 
@@ -427,13 +398,15 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       try {
         const isClosed = targetStatus !== 'em_negociacao';
         const closingDate = isClosed ? new Date().toISOString().split('T')[0] : null;
+        const nextPlaybook = getPlaybookTemplates(targetStatus);
 
         const { error } = await supabase
           .from('vendas')
           .update({
             status: targetStatus,
             data_fechamento: closingDate,
-            motivo_perda: null
+            motivo_perda: null,
+            playbook_checklist: nextPlaybook
           })
           .eq('id', sale.id);
 
@@ -442,6 +415,37 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       } catch (err) {
         console.error('Erro no drag & drop:', err);
       }
+    }
+  };
+
+  // Marcar/Desmarcar tarefas do Playbook Dinâmico de Vendas
+  const handleTogglePlaybookTask = async (taskText: string) => {
+    if (!selectedSaleForPlaybook) return;
+    
+    // Inicializar checklist se vazia
+    const currentChecklist = selectedSaleForPlaybook.playbook_checklist && Array.isArray(selectedSaleForPlaybook.playbook_checklist) && selectedSaleForPlaybook.playbook_checklist.length > 0
+      ? selectedSaleForPlaybook.playbook_checklist
+      : getPlaybookTemplates(selectedSaleForPlaybook.status);
+
+    const updatedChecklist = currentChecklist.map((t: any) => 
+      t.text === taskText ? { ...t, done: !t.done } : t
+    );
+    
+    const updatedSale = { ...selectedSaleForPlaybook, playbook_checklist: updatedChecklist };
+    setSelectedSaleForPlaybook(updatedSale);
+    
+    // Atualizar no array local imediatamente para evitar lag
+    setSales(prev => prev.map(s => s.id === selectedSaleForPlaybook.id ? updatedSale : s));
+
+    try {
+      const { error } = await supabase
+        .from('vendas')
+        .update({ playbook_checklist: updatedChecklist })
+        .eq('id', selectedSaleForPlaybook.id);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error('Erro ao atualizar checklist do playbook:', err);
     }
   };
 
@@ -711,6 +715,17 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                       <td className="py-3.5 pl-2 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            onClick={() => setSelectedSaleForPlaybook(sale)}
+                            className={`p-1 border rounded-none transition-colors ${
+                              selectedSaleForPlaybook?.id === sale.id 
+                                ? 'bg-[#C9A227] border-[#C9A227] text-[#0E1113]' 
+                                : 'bg-[#0E1113] border-[#23282B] text-slate-300 hover:text-white'
+                            }`}
+                            title="Visualizar Playbook por Etapa"
+                          >
+                            <ClipboardList className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             id={`btn-open-notes-${sale.id}`}
                             onClick={() => openNotesModal(sale)}
                             className="p-1 bg-[#0E1113] border border-[#23282B] rounded-none text-[#C9A227] hover:text-white transition-colors"
@@ -798,6 +813,17 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                               
                               <div className="flex items-center gap-1.5">
                                 <button
+                                  onClick={() => setSelectedSaleForPlaybook(sale)}
+                                  className={`p-1 border rounded-none transition-colors ${
+                                    selectedSaleForPlaybook?.id === sale.id 
+                                      ? 'bg-[#C9A227] border-[#C9A227] text-[#0E1113]' 
+                                      : 'bg-[#14181A] border-[#23282B] text-slate-300 hover:text-white'
+                                  }`}
+                                  title="Playbook por Etapa"
+                                >
+                                  <ClipboardList className="w-3.5 h-3.5" />
+                                </button>
+                                <button
                                   id={`btn-kanban-notes-${sale.id}`}
                                   onClick={() => openNotesModal(sale)}
                                   className="p-1 bg-[#14181A] border border-[#23282B] text-[#C9A227] hover:text-white transition-colors"
@@ -840,41 +866,60 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             <p className="text-xs text-slate-500 py-12 text-center flex-grow">Você ainda não registrou nenhuma oportunidade.</p>
           )}
         </div>
-        {/* Playbook Comercial Checklist */}
+        {/* Playbook Comercial Checklist por Negócio */}
         <div className={`p-6 border-r border-b border-[#23282B] space-y-4 ${mobileTab === 'checklist' ? 'block' : 'hidden md:block'}`}>
           <div>
-            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5 font-sans">
               <ClipboardList className="w-4 h-4 text-brand-400" /> Playbook Comercial
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">Rotina comercial diária recomendada</p>
+            {selectedSaleForPlaybook ? (
+              <p className="text-[10px] text-slate-500 mt-0.5 uppercase font-bold tracking-wider">
+                Cliente: <span className="text-white">{selectedSaleForPlaybook.clientes?.nome}</span> · Estágio: <span className="text-[#C9A227]">{selectedSaleForPlaybook.status === 'ganho' ? 'Ganho' : selectedSaleForPlaybook.status === 'perdido' ? 'Perdido' : 'Em Negociação'}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500 mt-0.5">Rotina de tarefas vinculadas a cada etapa da negociação</p>
+            )}
           </div>
 
-          <div className="space-y-3.5 pt-2">
-            {standardWork.map((task) => (
-              <div 
-                key={task.id}
-                onClick={() => handleToggleTask(task.id)}
-                className={`p-3.5 border cursor-pointer flex items-center justify-between group rounded-none ${
-                  task.done 
-                    ? 'bg-[#7FA88C]/5 border-[#7FA88C]/10 text-slate-500' 
-                    : 'bg-[#0E1113] border-[#23282B] text-slate-300'
-                }`}
-              >
-                <span className={`text-xs font-semibold leading-relaxed ${task.done ? 'line-through' : ''}`}>{task.text}</span>
-                <div className={`h-5 w-5 border flex items-center justify-center rounded-none ${
-                  task.done 
-                    ? 'bg-[#7FA88C]/20 border-[#7FA88C] text-[#7FA88C]' 
-                    : 'border-[#23282B] group-hover:border-slate-500'
-                }`}>
-                  {task.done && <Check className="w-3.5 h-3.5" />}
-                </div>
+          <div className="space-y-3 pt-2">
+            {selectedSaleForPlaybook ? (
+              (() => {
+                const currentChecklist = selectedSaleForPlaybook.playbook_checklist && Array.isArray(selectedSaleForPlaybook.playbook_checklist) && selectedSaleForPlaybook.playbook_checklist.length > 0
+                  ? selectedSaleForPlaybook.playbook_checklist
+                  : getPlaybookTemplates(selectedSaleForPlaybook.status);
+
+                return currentChecklist.map((task: any, index: number) => (
+                  <div 
+                    key={index}
+                    onClick={() => handleTogglePlaybookTask(task.text)}
+                    className={`p-3.5 border cursor-pointer flex items-center justify-between group rounded-none transition-all ${
+                      task.done 
+                        ? 'bg-[#7FA88C]/5 border-[#7FA88C]/15 text-slate-500' 
+                        : 'bg-[#0E1113] border-[#23282B] text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    <span className={`text-[11.5px] font-semibold leading-normal ${task.done ? 'line-through text-slate-500' : ''}`}>{task.text}</span>
+                    <div className={`h-4.5 w-4.5 border flex items-center justify-center rounded-none flex-shrink-0 ml-3 ${
+                      task.done 
+                        ? 'bg-[#7FA88C]/20 border-[#7FA88C] text-[#7FA88C]' 
+                        : 'border-[#23282B] group-hover:border-slate-500'
+                    }`}>
+                      {task.done && <Check className="w-3 h-3" />}
+                    </div>
+                  </div>
+                ));
+              })()
+            ) : (
+              <div className="text-center py-12 px-4 border border-dashed border-[#23282B] text-[#4A5256]">
+                <ClipboardList className="w-8 h-8 mx-auto text-[#23282B] mb-2.5" />
+                <p className="text-[11.5px] leading-relaxed">Selecione uma negociação no Kanban clicando no ícone <ClipboardList className="w-3.5 h-3.5 inline-block mx-0.5 text-slate-400" /> para carregar o seu respectivo Playbook.</p>
               </div>
-            ))}
+            )}
           </div>
 
-          <div className="bg-[#0E1113] border border-[#23282B] p-4 text-xs text-slate-400 leading-relaxed flex gap-2 rounded-none">
+          <div className="bg-[#0E1113] border border-[#23282B] p-4 text-[10.5px] text-slate-400 leading-relaxed flex gap-2 rounded-none">
             <AlertCircle className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
-            <p>O <strong>Playbook de Atividades</strong> garante a cadência diária de prospecção e follow-up, acelerando a taxa de conversão e evitando leads frios no funil.</p>
+            <p>O <strong>Playbook Dinâmico</strong> padroniza a rotina de vendas por estágio. Cada negócio possui tarefas dedicadas, garantindo a qualidade do atendimento e faturamento.</p>
           </div>
         </div>
       </div>

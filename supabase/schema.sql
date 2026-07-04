@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS public.vendas (
     data_fechamento DATE, -- Preenchido ao fechar a venda
     status VARCHAR(50) NOT NULL DEFAULT 'em_negociacao', -- 'ganho', 'perdido', 'em_negociacao'
     motivo_perda TEXT, -- Para o PDCA (Kaizen) analisar causa raiz se status = 'perdido'
+    playbook_checklist JSONB DEFAULT '[]'::jsonb, -- CRM checklists
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
