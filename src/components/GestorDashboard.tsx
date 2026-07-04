@@ -265,7 +265,8 @@ export default function GestorDashboard() {
 
   // 4. Saldo Operacional e Ticket Médio
   const saldoOperacional = totalEntradas - totalSaidas;
-  const ticketMedio = wonVendas.length > 0 ? (totalEntradas / wonVendas.length) : 0;
+  const totalValorContratosGanhos = wonVendas.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+  const ticketMedio = wonVendas.length > 0 ? (totalValorContratosGanhos / wonVendas.length) : 0;
 
   // 5. Clientes cadastrados no período (Novos Clientes)
   const baseNovosClientes = clientes.filter(c => isInPeriod(c.data_cadastro));
@@ -636,7 +637,7 @@ export default function GestorDashboard() {
           </button>
 
           {/* Status de Performance (SLA) */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-950/40 border border-slate-800/80">
             <span className="andon-indicator">
               <span className={`andon-indicator-ring ${
                 pctReceita >= 95 ? 'bg-emerald-500' : pctReceita >= 70 ? 'bg-amber-500' : 'bg-red-500'
@@ -1073,11 +1074,11 @@ export default function GestorDashboard() {
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A]">
-          {/* Análise de 5 Porquês para Vendas Perdidas */}
+          {/* Diagnóstico de Vendas Perdidas */}
           <div className={`p-6 lg:col-span-1 border-r border-b border-[#23282B] space-y-4 ${mobileTab === 'whys' ? 'block' : 'hidden md:block'}`}>
             <div>
               <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
-                <FileQuestion className="w-4 h-4 text-brand-400" /> Diagnóstico de Desvios (5 Porquês)
+                <FileQuestion className="w-4 h-4 text-brand-400" /> Diagnóstico de Perda de Vendas
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">Analise desvios no fluxo de conversão (vendas perdidas)</p>
             </div>
@@ -1103,26 +1104,44 @@ export default function GestorDashboard() {
 
               {selectedVendaPerdida && (
                 <div className="space-y-3.5 bg-[#0E1113] p-4 border border-[#23282B] rounded-none">
-                  <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2">Análise de Causa Raiz</p>
+                  <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2">Diagnóstico de Motivo de Perda</p>
                   
-                  {whys.map((why, index) => (
-                    <div key={index} className="space-y-1">
-                      <label htmlFor={`why-${index}`} className="text-[10px] font-bold text-slate-500 uppercase">{index + 1}º Porquê?</label>
-                      <input
-                        id={`why-${index}`}
-                        type="text"
-                        required={index === 0}
-                        placeholder={index === 0 ? "Por que o cliente recusou?" : "Por que isso ocorreu?"}
-                        value={why}
-                        onChange={(e) => {
-                          const newWhys = [...whys];
-                          newWhys[index] = e.target.value;
-                          setWhys(newWhys);
-                        }}
-                        className="w-full bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
-                      />
-                    </div>
-                  ))}
+                  {(() => {
+                    const labelsComerciais = [
+                      "1. Objeção Principal (ex: Preço, Concorrência)",
+                      "2. Por que nossa proposta não cobriu isso?",
+                      "3. Qual foi o principal gargalo comercial?",
+                      "4. Causa Raiz Real da Perda",
+                      "5. Aprendizado / O que ajustar no processo"
+                    ];
+                    const placeholdersComerciais = [
+                      "Qual a objeção declarada pelo cliente?",
+                      "Por que não conseguimos contornar a objeção?",
+                      "Houve demora, falta de flexibilidade ou concorrência?",
+                      "O que de fato causou a perda do negócio?",
+                      "Qual a lição para a próxima negociação?"
+                    ];
+                    return whys.map((why, index) => (
+                      <div key={index} className="space-y-1">
+                        <label htmlFor={`why-${index}`} className="text-[10px] font-bold text-slate-500 uppercase">
+                          {labelsComerciais[index]}
+                        </label>
+                        <input
+                          id={`why-${index}`}
+                          type="text"
+                          required={index === 0}
+                          placeholder={placeholdersComerciais[index]}
+                          value={why}
+                          onChange={(e) => {
+                            const newWhys = [...whys];
+                            newWhys[index] = e.target.value;
+                            setWhys(newWhys);
+                          }}
+                          className="w-full bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
+                        />
+                      </div>
+                    ));
+                  })()}
 
                   <div className="h-px bg-[#23282B] my-4"></div>
                   <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2">Ação Comercial (5W2H)</p>
@@ -1134,7 +1153,7 @@ export default function GestorDashboard() {
                         id="action-desc"
                         type="text"
                         required
-                        placeholder="Ex: Formular plano de discounts estruturados"
+                        placeholder="Ex: Formular plano de descontos estruturados"
                         value={actionDesc}
                         onChange={(e) => setActionDesc(e.target.value)}
                         className="w-full bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
@@ -1190,9 +1209,9 @@ export default function GestorDashboard() {
             <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
               <div>
                 <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
-                  <ClipboardList className="w-4 h-4 text-brand-400" /> Quadro de Planos de Ação (5W2H)
+                  <ClipboardList className="w-4 h-4 text-brand-400" /> Quadro de Planos de Ação Comercial
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Ações para mitigação de perdas e melhoria contínua de processos</p>
+                <p className="text-xs text-slate-500 mt-0.5">Ações de mitigação de objeções e otimização do fluxo de vendas</p>
               </div>
             </div>
 
@@ -1429,7 +1448,7 @@ export default function GestorDashboard() {
                 <Plus className="w-4.5 h-4.5 text-[#C9A227]" /> Cadastrar Novo Vendedor
               </h3>
               <button onClick={() => setIsVendedorModalOpen(false)} className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white">
-                <X className="w-4 h-4" />
+                <X className="w-4.5 h-4.5" />
               </button>
             </div>
 
