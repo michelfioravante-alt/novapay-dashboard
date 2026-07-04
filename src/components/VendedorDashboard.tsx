@@ -6,7 +6,7 @@ import {
   Phone, Mail, UserCheck, TrendingUp
 } from 'lucide-react';
 import { 
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend 
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine 
 } from 'recharts';
 
 interface Vendedor {
@@ -717,75 +717,6 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
         </div>
       </div>
 
-      {/* Gráfico Histórico de Vendas Ganhas vs Perdidas */}
-      <div className={`bg-[#14181A] border border-[#23282B] p-6 space-y-4 ${
-        activeDesktopTab === 'negociacoes' ? (mobileTab === 'dashboard' ? 'block' : 'hidden md:block') : 'hidden'
-      }`}>
-        <div className="flex justify-between items-center border-b border-[#23282B]/60 pb-3 flex-wrap gap-2">
-          <div>
-            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5 font-sans">
-              <TrendingUp className="w-4 h-4 text-brand-400" /> Histórico de Performance Comercial (Win vs Loss)
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-sans">Acompanhamento de volume ganho comparado a perdas nos últimos 6 meses</p>
-          </div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-[#0E1113] border border-[#23282B] px-2.5 py-1 font-mono">
-            Últimos 6 meses
-          </span>
-        </div>
-
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                stroke="#4A5256" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false} 
-                className="font-mono"
-              />
-              <YAxis 
-                stroke="#4A5256" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false}
-                className="font-mono"
-                tickFormatter={(value) => 
-                  new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
-                }
-              />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#0E1113', borderColor: '#23282B', borderRadius: 0 }}
-                itemStyle={{ fontSize: 11, fontFamily: 'monospace' }}
-                labelStyle={{ fontSize: 10, fontWeight: 'bold', color: '#fff', marginBottom: 4 }}
-                formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value)), '']}
-              />
-              <Legend 
-                iconSize={8}
-                iconType="circle"
-                wrapperStyle={{ fontSize: 10, paddingTop: 10 }}
-              />
-              <Bar 
-                dataKey="Vendas Ganhas" 
-                fill="#7FA88C" 
-                radius={[2, 2, 0, 0]} 
-                maxBarSize={45}
-              />
-              <Bar 
-                dataKey="Vendas Perdidas" 
-                fill="#B5504B" 
-                radius={[2, 2, 0, 0]} 
-                maxBarSize={45}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
       {/* Grid Central: Lista de Vendas e Playbook */}
       <div className={`grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A] flex-1 items-start ${
         activeDesktopTab === 'negociacoes' ? (mobileTab !== 'dashboard' && mobileTab !== 'clients' ? 'block' : 'hidden md:block') : 'hidden'
@@ -1068,6 +999,97 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                 : 'Nenhuma oportunidade comercial corresponde aos critérios de pesquisa.'}
             </p>
           )}
+
+          {/* Gráfico Histórico de Performance Comercial (Win vs Loss) */}
+          <div className="bg-[#0E1113] border border-[#23282B] p-4 mt-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-[#23282B]/60 pb-2.5 flex-wrap gap-2">
+              <div>
+                <h4 className="text-[11.5px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                  <TrendingUp className="w-4 h-4 text-brand-400" /> Evolução Comercial & Performance (Win vs Loss)
+                </h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">Visão de faturamento ganho comparado a perdas e linha de meta nos últimos 6 meses</p>
+              </div>
+              <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest bg-[#14181A] border border-[#23282B] px-2 py-0.5">
+                Histórico
+              </span>
+            </div>
+
+            <div className="h-56 w-full text-xs">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorGanho" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#7FA88C" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#7FA88C" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorPerdido" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#B5504B" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="#B5504B" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#4A5256" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false}
+                    className="font-mono"
+                  />
+                  <YAxis 
+                    stroke="#4A5256" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false}
+                    className="font-mono"
+                    tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(val)}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#0E1113', borderColor: '#23282B', borderRadius: 0 }} 
+                    itemStyle={{ fontSize: 11, fontFamily: 'monospace' }} 
+                    labelStyle={{ fontSize: 10, fontWeight: 'bold', color: '#ffffff', marginBottom: 4 }}
+                    formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value)), '']}
+                  />
+                  <Legend verticalAlign="top" height={32} iconType="square" wrapperStyle={{ fontSize: 10 }} />
+                  
+                  {/* Linha Horizontal de Meta Mensal */}
+                  <ReferenceLine 
+                    y={metaIndividual} 
+                    stroke="#C9A227" 
+                    strokeDasharray="4 4" 
+                    strokeWidth={1.5}
+                    label={{ 
+                      value: `META MENSAL: R$ ${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(metaIndividual)}`, 
+                      position: 'top', 
+                      fill: '#C9A227', 
+                      fontSize: 8.5, 
+                      fontWeight: 'bold',
+                      fontFamily: 'monospace'
+                    }} 
+                  />
+                  
+                  <Area 
+                    type="monotone" 
+                    dataKey="Vendas Ganhas" 
+                    name="Faturamento (Ganho)" 
+                    stroke="#7FA88C" 
+                    strokeWidth={2} 
+                    fillOpacity={1} 
+                    fill="url(#colorGanho)" 
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="Vendas Perdidas" 
+                    name="Perdas (Perdido)" 
+                    stroke="#B5504B" 
+                    strokeWidth={1.5} 
+                    fillOpacity={1} 
+                    fill="url(#colorPerdido)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
         {/* Painel de Insights & Simulador de Comissão */}
         <div className={`p-6 border-r border-b border-[#23282B] space-y-5 ${mobileTab === 'checklist' ? 'block' : 'hidden md:block'}`}>
