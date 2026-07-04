@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { 
   DollarSign, Target, Percent, Plus, Edit2, Check, X, 
   Trash2, RefreshCw, ClipboardList, AlertCircle, MessageSquare,
-  Phone, Mail, UserCheck
+  Phone, Mail, UserCheck, TrendingUp
 } from 'lucide-react';
 
 interface Vendedor {
@@ -34,6 +34,9 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   // Estado do Modal de Detalhes da Oportunidade
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedSaleForDetail, setSelectedSaleForDetail] = useState<any | null>(null);
+
+  // Estado do Simulador de Vendas
+  const [simulatedValue, setSimulatedValue] = useState('');
   
   // Controle de Modais / Formulários
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -433,29 +436,31 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   };
 
   // Marcar/Desmarcar tarefas do Playbook Dinâmico de Vendas
-  const handleTogglePlaybookTask = async (taskText: string) => {
-    if (!selectedSaleForPlaybook) return;
+  const handleTogglePlaybookTask = async (sale: any, taskText: string) => {
+    if (!sale) return;
     
     // Inicializar checklist se vazia
-    const currentChecklist = selectedSaleForPlaybook.playbook_checklist && Array.isArray(selectedSaleForPlaybook.playbook_checklist) && selectedSaleForPlaybook.playbook_checklist.length > 0
-      ? selectedSaleForPlaybook.playbook_checklist
-      : getPlaybookTemplates(selectedSaleForPlaybook.status);
+    const currentChecklist = sale.playbook_checklist && Array.isArray(sale.playbook_checklist) && sale.playbook_checklist.length > 0
+      ? sale.playbook_checklist
+      : getPlaybookTemplates(sale.status);
 
     const updatedChecklist = currentChecklist.map((t: any) => 
       t.text === taskText ? { ...t, done: !t.done } : t
     );
     
-    const updatedSale = { ...selectedSaleForPlaybook, playbook_checklist: updatedChecklist };
-    setSelectedSaleForPlaybook(updatedSale);
+    const updatedSale = { ...sale, playbook_checklist: updatedChecklist };
+    
+    if (selectedSaleForPlaybook?.id === sale.id) setSelectedSaleForPlaybook(updatedSale);
+    if (selectedSaleForDetail?.id === sale.id) setSelectedSaleForDetail(updatedSale);
     
     // Atualizar no array local imediatamente para evitar lag
-    setSales(prev => prev.map(s => s.id === selectedSaleForPlaybook.id ? updatedSale : s));
+    setSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
 
     try {
       const { error } = await supabase
         .from('vendas')
         .update({ playbook_checklist: updatedChecklist })
-        .eq('id', selectedSaleForPlaybook.id);
+        .eq('id', sale.id);
 
       if (error) throw error;
     } catch (err) {
@@ -522,7 +527,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Painel Comercial & Playbook
+          Painel Comercial & Insights
         </button>
         <button
           onClick={() => setActiveDesktopTab('clientes')}
@@ -813,15 +818,35 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                             return { done: dCount, total: tCount, allDone: tCount > 0 && dCount === tCount };
                           })();
 
+                          // Calcular dias parado no funil (alerta de estagnação)
+                          const daysStagnant = (() => {
+                            if (sale.status !== 'em_negociacao') return 0;
+                            const start = new Date(sale.data_abertura);
+                            const today = new Date();
+                            const diffTime = Math.abs(today.getTime() - start.getTime());
+                            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                            return diffDays;
+                          })();
+                          const isStale = daysStagnant >= 7;
+
                           return (
                             <div
                               key={sale.id}
                               draggable="true"
                               onDragStart={(e) => handleDragStart(e, sale.id)}
                               onClick={() => openDetailModal(sale)}
-                              className="bg-[#0E1113] border border-[#23282B] p-3 hover:border-slate-500 hover:bg-[#14181A] transition-all cursor-pointer space-y-3.5"
+                              className={`bg-[#0E1113] border p-3 hover:border-slate-500 hover:bg-[#14181A] transition-all cursor-pointer space-y-3.5 ${
+                                isStale 
+                                  ? 'border-[#C9A227]/50 shadow-[0_0_8px_rgba(201,162,39,0.05)]' 
+                                  : 'border-[#23282B]'
+                              }`}
                             >
                               <div className="space-y-1">
+                                {isStale && (
+                                  <div className="flex items-center gap-1 text-[8.5px] font-bold text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-1.5 py-0.5 w-max mb-1 uppercase tracking-wider font-mono">
+                                    ⚠️ Estagnado há {daysStagnant} dias
+                                  </div>
+                                )}
                                 <div className="flex justify-between items-start gap-1">
                                   <span className="font-bold text-white text-[11px] leading-snug">{sale.clientes?.nome}</span>
                                   <span className="font-mono text-[9px] text-slate-500 font-medium flex-shrink-0">
@@ -897,60 +922,105 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             <p className="text-xs text-slate-500 py-12 text-center flex-grow">Você ainda não registrou nenhuma oportunidade.</p>
           )}
         </div>
-        {/* Playbook Comercial Checklist por Negócio */}
-        <div className={`p-6 border-r border-b border-[#23282B] space-y-4 ${mobileTab === 'checklist' ? 'block' : 'hidden md:block'}`}>
+        {/* Painel de Insights & Simulador de Comissão */}
+        <div className={`p-6 border-r border-b border-[#23282B] space-y-5 ${mobileTab === 'checklist' ? 'block' : 'hidden md:block'}`}>
           <div>
             <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5 font-sans">
-              <ClipboardList className="w-4 h-4 text-brand-400" /> Playbook Comercial
+              <TrendingUp className="w-4 h-4 text-[#C9A227]" /> Insights & Simulador
             </h3>
-            {selectedSaleForPlaybook ? (
-              <p className="text-[10px] text-slate-500 mt-0.5 uppercase font-bold tracking-wider">
-                Cliente: <span className="text-white">{selectedSaleForPlaybook.clientes?.nome}</span> · Estágio: <span className="text-[#C9A227]">{selectedSaleForPlaybook.status === 'ganho' ? 'Ganho' : selectedSaleForPlaybook.status === 'perdido' ? 'Perdido' : 'Em Negociação'}</span>
-              </p>
-            ) : (
-              <p className="text-xs text-slate-500 mt-0.5">Rotina de tarefas vinculadas a cada etapa da negociação</p>
-            )}
+            <p className="text-xs text-slate-500 mt-0.5 font-sans">Métricas de comissionamento e simulador de metas</p>
           </div>
 
-          <div className="space-y-3 pt-2">
-            {selectedSaleForPlaybook ? (
-              (() => {
-                const currentChecklist = selectedSaleForPlaybook.playbook_checklist && Array.isArray(selectedSaleForPlaybook.playbook_checklist) && selectedSaleForPlaybook.playbook_checklist.length > 0
-                  ? selectedSaleForPlaybook.playbook_checklist
-                  : getPlaybookTemplates(selectedSaleForPlaybook.status);
-
-                return currentChecklist.map((task: any, index: number) => (
-                  <div 
-                    key={index}
-                    onClick={() => handleTogglePlaybookTask(task.text)}
-                    className={`p-3.5 border cursor-pointer flex items-center justify-between group rounded-none transition-all ${
-                      task.done 
-                        ? 'bg-[#7FA88C]/5 border-[#7FA88C]/15 text-slate-500' 
-                        : 'bg-[#0E1113] border-[#23282B] text-slate-300 hover:border-slate-500'
-                    }`}
-                  >
-                    <span className={`text-[11.5px] font-semibold leading-normal ${task.done ? 'line-through text-slate-500' : ''}`}>{task.text}</span>
-                    <div className={`h-4.5 w-4.5 border flex items-center justify-center rounded-none flex-shrink-0 ml-3 ${
-                      task.done 
-                        ? 'bg-[#7FA88C]/20 border-[#7FA88C] text-[#7FA88C]' 
-                        : 'border-[#23282B] group-hover:border-slate-500'
-                    }`}>
-                      {task.done && <Check className="w-3 h-3" />}
-                    </div>
+          {/* Seção 1: Métricas de Pipeline Aberto */}
+          <div className="bg-[#0E1113] border border-[#23282B] p-4 space-y-3">
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pipeline em Negociação</h4>
+            
+            {(() => {
+              const activeSales = sales.filter(s => s.status === 'em_negociacao');
+              const totalPipeline = activeSales.reduce((acc, s) => acc + Number(s.valor_contrato), 0);
+              const potentialCommission = totalPipeline * 0.05;
+              
+              return (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400">Total Aberto:</span>
+                    <span className="font-mono font-bold text-white">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalPipeline)}
+                    </span>
                   </div>
-                ));
-              })()
-            ) : (
-              <div className="text-center py-12 px-4 border border-dashed border-[#23282B] text-[#4A5256]">
-                <ClipboardList className="w-8 h-8 mx-auto text-[#23282B] mb-2.5" />
-                <p className="text-[11.5px] leading-relaxed">Selecione uma negociação no Kanban clicando no ícone <ClipboardList className="w-3.5 h-3.5 inline-block mx-0.5 text-slate-400" /> para carregar o seu respectivo Playbook.</p>
-              </div>
-            )}
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400">Comissão Potencial (5%):</span>
+                    <span className="font-mono font-bold text-[#7FA88C]">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(potentialCommission)}
+                    </span>
+                  </div>
+                  <div className="text-[9.5px] text-slate-500 font-sans leading-normal pt-1 border-t border-[#1A1F21]">
+                    {activeSales.length === 1 ? '1 negócio aberto pendente de fechamento' : `${activeSales.length} negócios abertos pendentes de fechamento`}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
+          {/* Seção 2: Simulador de Vendas */}
+          <div className="bg-[#0E1113] border border-[#23282B] p-4 space-y-3.5">
+            <h4 className="text-[10px] font-bold text-[#C9A227] uppercase tracking-wider">Simulador de Metas</h4>
+            <p className="text-[10px] text-slate-500 leading-normal">Simule um fechamento para ver o progresso da sua meta e sua comissão subirem:</p>
+            
+            <div className="space-y-2">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">R$</span>
+                <input
+                  type="number"
+                  placeholder="Valor do Contrato"
+                  value={simulatedValue}
+                  onChange={(e) => setSimulatedValue(e.target.value)}
+                  className="w-full bg-[#14181A] border border-[#23282B] rounded-none pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-brand-500 text-white font-mono"
+                />
+              </div>
+
+              {simulatedValue && Number(simulatedValue) > 0 && (
+                (() => {
+                  const val = parseFloat(simulatedValue);
+                  const simFaturamento = faturamentoRealizado + val;
+                  const simComissao = comissaoEstimada + (val * 0.05);
+                  const simPct = (simFaturamento / metaIndividual) * 100;
+                  
+                  return (
+                    <div className="bg-[#14181A] border border-[#23282B] p-3 space-y-2.5 animate-fade-in text-xs font-sans leading-relaxed">
+                      <div className="flex justify-between items-center text-slate-400">
+                        <span>Nova Comissão (5%):</span>
+                        <span className="font-bold text-[#7FA88C] font-mono">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(simComissao)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-400">
+                        <span>Novo Progresso da Meta:</span>
+                        <span className="font-bold text-white font-mono">{simPct.toFixed(1)}%</span>
+                      </div>
+                      
+                      {/* Barra de Progresso Simulada */}
+                      <div className="h-2 bg-[#0E1113] border border-[#23282B] relative w-full overflow-hidden">
+                        <div 
+                          className={`h-full ${simPct >= 70 ? 'bg-[#7FA88C]' : 'bg-[#B5504B]'}`}
+                          style={{ width: `${Math.min(simPct, 100)}%` }}
+                        ></div>
+                      </div>
+                      
+                      <p className="text-[9.5px] text-[#C9A227] font-semibold leading-normal">
+                        Bater {simPct.toFixed(0)}% da meta garante estabilidade do andamento comercial!
+                      </p>
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+          </div>
+
+          {/* Dica Lean / Velocidade */}
           <div className="bg-[#0E1113] border border-[#23282B] p-4 text-[10.5px] text-slate-400 leading-relaxed flex gap-2 rounded-none">
             <AlertCircle className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
-            <p>O <strong>Playbook Dinâmico</strong> padroniza a rotina de vendas por estágio. Cada negócio possui tarefas dedicadas, garantindo a qualidade do atendimento e faturamento.</p>
+            <p><strong>Dica RevOps:</strong> Fazer follow-up constante reduz o tempo de negociação (Lead Time). Limpe leads frios do funil marcando-os como Perdidos e registrando o diagnóstico.</p>
           </div>
         </div>
       </div>
@@ -1237,8 +1307,8 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             mobileTab === 'checklist' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <ClipboardList className="w-5 h-5" />
-          <span className="text-[10px] font-bold font-sans">Playbook</span>
+          <TrendingUp className="w-5 h-5" />
+          <span className="text-[10px] font-bold font-sans">Insights</span>
         </button>
       </div>
 
@@ -1489,27 +1559,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                       return currentChecklist.map((task: any, index: number) => (
                         <div 
                           key={index}
-                          onClick={async () => {
-                            // Atualizar localmente no modal de detalhes
-                            const updatedChecklist = currentChecklist.map((t: any) => 
-                              t.text === task.text ? { ...t, done: !t.done } : t
-                            );
-                            const updatedSale = { ...selectedSaleForDetail, playbook_checklist: updatedChecklist };
-                            setSelectedSaleForDetail(updatedSale);
-                            
-                            // Atualizar no array local geral
-                            setSales(prev => prev.map(s => s.id === selectedSaleForDetail.id ? updatedSale : s));
-
-                            // Salvar no Supabase
-                            try {
-                              await supabase
-                                .from('vendas')
-                                .update({ playbook_checklist: updatedChecklist })
-                                .eq('id', selectedSaleForDetail.id);
-                            } catch (err) {
-                              console.error('Erro ao atualizar playbook no modal de detalhes:', err);
-                            }
-                          }}
+                          onClick={() => handleTogglePlaybookTask(selectedSaleForDetail, task.text)}
                           className={`p-2.5 border cursor-pointer flex items-center justify-between group rounded-none transition-all ${
                             task.done 
                               ? 'bg-[#7FA88C]/5 border-[#7FA88C]/15 text-slate-500' 
