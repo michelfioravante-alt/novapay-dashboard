@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  Legend, Cell, PieChart, Pie
+  Legend, Cell, PieChart, Pie, ComposedChart, Line, Bar
 } from 'recharts';
 import { 
   Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp
@@ -285,17 +285,36 @@ export default function GestorDashboard() {
       }, 0) / closedVendas.length
     : 0;
 
-  // 8. Ranking de Vendedores (Por valor fechado)
+  // 8. Ranking de Vendedores (Por valor fechado e perdido)
   const rankingVendedores = vendedores.map(vend => {
-    const totalFechado = vendas
+    // Vendas ganhas do vendedor no período
+    const totalGanho = vendas
       .filter(v => v.vendedor_id === vend.id && v.status === 'ganho' && isInPeriod(v.data_fechamento))
       .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+
+    // Vendas perdidas do vendedor no período
+    const totalPerdido = vendas
+      .filter(v => v.vendedor_id === vend.id && v.status === 'perdido' && isInPeriod(v.data_fechamento))
+      .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+
+    // Oportunidades totais do vendedor no período
+    const totalOps = vendas
+      .filter(v => v.vendedor_id === vend.id && isInPeriod(v.data_fechamento || v.data_abertura));
+
+    const totalOpsCount = totalOps.length;
+    const wonCount = totalOps.filter(v => v.status === 'ganho').length;
+    const convRate = totalOpsCount > 0 ? (wonCount / totalOpsCount) * 100 : 0;
+
     return {
       id: vend.id,
       nome: vend.nome,
-      valor: totalFechado
+      ganho: totalGanho,
+      perdido: totalPerdido,
+      conversao: convRate,
+      totalNegocios: totalOpsCount,
+      valor: totalGanho // Mantemos 'valor' para compatibilidade se houver outras referências
     };
-  }).sort((a, b) => b.valor - a.valor);
+  }).sort((a, b) => b.ganho - a.ganho);
 
   // Cálculo de Pareto dos motivos de perda
   const motivosFrequencia = (() => {
@@ -957,11 +976,11 @@ export default function GestorDashboard() {
             )}
           </div>
 
-          {/* Ranking Comercial (Leaderboard Interativo) */}
+          {/* Ranking Comercial (Leaderboard Interativo Ganhos & Perdas) */}
           <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-baseline justify-between">
-                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Ranking comercial</h3>
+                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Ranking & Conversão</h3>
                 <span className="text-[9px] font-mono font-bold text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-1.5 py-0.5 uppercase tracking-wide">
                   Interativo
                 </span>
@@ -971,25 +990,50 @@ export default function GestorDashboard() {
               <div className="space-y-1">
                 {rankingVendedores.map((vend, index) => {
                   const isSelected = selectedVendedorFilter === vend.id;
+                  const totalFechadoVal = vend.ganho + vend.perdido;
+                  const pctGanho = totalFechadoVal > 0 ? (vend.ganho / totalFechadoVal) * 100 : 0;
+                  const pctPerdido = totalFechadoVal > 0 ? (vend.perdido / totalFechadoVal) * 100 : 0;
+                  
                   return (
                     <div 
                       key={index} 
                       onClick={() => setSelectedVendedorFilter(isSelected ? 'todos' : vend.id)}
-                      className={`flex justify-between items-center py-2 px-2.5 border border-transparent cursor-pointer transition-all hover:bg-[#1C2022] ${
+                      className={`flex flex-col py-2.5 px-3 border border-transparent cursor-pointer transition-all hover:bg-[#1C2022] ${
                         isSelected 
-                          ? 'bg-[#C9A227]/10 border-[#C9A227]/20 text-white font-semibold' 
+                          ? 'bg-[#C9A227]/10 border-[#C9A227]/20 text-white' 
                           : 'text-[#D8DEE1]'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className={`font-mono text-[10px] w-4 ${
-                          index === 0 ? 'text-[#C9A227] font-bold' : 'text-[#4A5256]'
-                        }`}>{String(index + 1).padStart(2, '0')}</span>
-                        <span className="text-xs">{vend.nome}</span>
+                      <div className="flex justify-between items-center gap-2">
+                        <div className="flex items-center gap-2 truncate">
+                          <span className={`font-mono text-[10px] w-4 ${
+                            index === 0 ? 'text-[#C9A227] font-bold' : 'text-[#4A5256]'
+                          }`}>{String(index + 1).padStart(2, '0')}</span>
+                          <div className="flex flex-col truncate">
+                            <span className={`text-xs ${isSelected ? 'font-bold text-white' : 'font-medium'}`}>{vend.nome}</span>
+                            <span className="text-[9.5px] text-slate-500 font-medium">
+                              Conv: {vend.conversao.toFixed(0)}% · {vend.totalNegocios} neg.
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col items-end text-right font-mono text-[11px] flex-shrink-0">
+                          <span className="text-[#7FA88C] font-bold">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.ganho)}
+                          </span>
+                          <span className="text-[#B5504B] text-[9.5px]">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.perdido)}
+                          </span>
+                        </div>
                       </div>
-                      <span className="font-mono text-xs">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.valor)}
-                      </span>
+                      
+                      {/* Barra de Proporção Ganho vs Perdido */}
+                      {totalFechadoVal > 0 && (
+                        <div className="h-1 bg-[#0E1113] w-full mt-1.5 flex overflow-hidden border border-[#23282B]/20">
+                          <div className="h-full bg-[#7FA88C]" style={{ width: `${pctGanho}%` }} title={`Ganhos: ${pctGanho.toFixed(0)}%`}></div>
+                          <div className="h-full bg-[#B5504B]" style={{ width: `${pctPerdido}%` }} title={`Perdas: ${pctPerdido.toFixed(0)}%`}></div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1013,53 +1057,98 @@ export default function GestorDashboard() {
             </div>
           </div>
 
-          {/* Pareto de Motivos de Perdas */}
+          {/* Pareto de Motivos de Perdas (Gráfico de Pareto de Verdade) */}
           <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
             <div className="space-y-4">
               <div>
-                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Análise de Pareto (Objeções)</h3>
-                <p className="text-xs text-[#7C868A] mt-0.5">Motivos mais recorrentes de perdas de negócios</p>
+                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Gráfico de Pareto (Objeções)</h3>
+                <p className="text-xs text-[#7C868A] mt-0.5">Diagnóstico acumulado de causas de perdas</p>
               </div>
 
-              <div className="space-y-4">
-                {motivosFrequencia.items.slice(0, 4).map((mot, index) => (
-                  <div key={index} className="space-y-1.5">
-                    <div className="flex justify-between items-baseline text-xs">
-                      <span className="text-[#D8DEE1] font-medium truncate max-w-[170px]" title={mot.name}>
-                        {mot.name}
-                      </span>
-                      <span className="font-mono text-slate-500 text-[10px] font-bold">
-                        {mot.value} {mot.value === 1 ? 'perda' : 'perdas'} ({mot.pct.toFixed(0)}%)
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {/* Barra de Progresso Individual */}
-                      <div className="flex-1 h-2 bg-[#0E1113] border border-[#23282B] relative w-full overflow-hidden">
-                        <div 
-                          className="h-full bg-[#B5504B]/80 transition-all duration-500"
-                          style={{ width: `${mot.pct}%` }}
-                        ></div>
-                      </div>
-                      {/* Linha Acumulada Pareto */}
-                      <span className="text-[8.5px] font-mono font-bold text-slate-400 bg-[#1A1F21] px-1.5 py-0.5 whitespace-nowrap" title="Porcentagem acumulada (Pareto)">
-                        {mot.accPct.toFixed(0)}% acum.
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                
-                {motivosFrequencia.items.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
-                    <span className="text-2xl">🎉</span>
-                    <p className="text-xs text-slate-500 font-sans">Sem objeções registradas no período!</p>
-                  </div>
-                )}
-              </div>
+              {motivosFrequencia.items.length > 0 ? (
+                <div className="h-44 w-full text-[9px] font-sans">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={motivosFrequencia.items} margin={{ top: 10, right: -15, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
+                      <XAxis 
+                        dataKey="name" 
+                        stroke="#4A5256" 
+                        fontSize={8.5} 
+                        tickLine={false} 
+                        axisLine={false}
+                        className="font-mono"
+                        tickFormatter={(value) => value.substring(0, 10) + '..'}
+                      />
+                      
+                      {/* Eixo Esquerdo: Quantidade */}
+                      <YAxis 
+                        yAxisId="left"
+                        stroke="#4A5256" 
+                        fontSize={9} 
+                        tickLine={false}
+                        axisLine={false}
+                        className="font-mono"
+                        allowDecimals={false}
+                      />
+                      
+                      {/* Eixo Direito: Percentual Acumulado */}
+                      <YAxis 
+                        yAxisId="right"
+                        orientation="right"
+                        stroke="#C9A227" 
+                        fontSize={9} 
+                        tickLine={false}
+                        axisLine={false}
+                        className="font-mono"
+                        domain={[0, 100]}
+                        tickFormatter={(val) => `${val}%`}
+                      />
+                      
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#0E1113', borderColor: '#23282B', borderRadius: 0 }}
+                        itemStyle={{ fontSize: 10, fontFamily: 'monospace' }}
+                        labelStyle={{ fontSize: 9.5, fontWeight: 'bold', color: '#fff', marginBottom: 3 }}
+                        formatter={(value, name) => {
+                          if (name === "% Acumulado") return [`${Number(value).toFixed(0)}%`, name];
+                          return [value, "Negócios Perdidos"];
+                        }}
+                      />
+                      
+                      <Bar 
+                        yAxisId="left" 
+                        dataKey="value" 
+                        name="Qtd Perdas" 
+                        fill="#B5504B" 
+                        barSize={20} 
+                        radius={[1.5, 1.5, 0, 0]} 
+                      />
+                      
+                      <Line 
+                        yAxisId="right" 
+                        type="monotone" 
+                        dataKey="accPct" 
+                        name="% Acumulado" 
+                        stroke="#C9A227" 
+                        strokeWidth={1.5} 
+                        dot={{ fill: '#C9A227', r: 2.5 }} 
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
+                  <span className="text-2xl">🎉</span>
+                  <p className="text-xs text-slate-500 font-sans">Sem objeções registradas no período!</p>
+                </div>
+              )}
             </div>
 
-            <div className="text-[9.5px] text-slate-500 leading-normal border-t border-[#1A1F21] pt-3 font-sans">
-              💡 <strong>Regra 80/20:</strong> Concentre esforços de treinamento nas objeções que acumulam até 80% das perdas.
+            <div className="text-[9px] text-slate-500 leading-normal border-t border-[#1A1F21] pt-3.5 font-sans">
+              💡 <strong>Regra 80/20:</strong> {motivosFrequencia.items.length > 0 ? (
+                <span>As objeções acima acumulam {motivosFrequencia.total} negócios perdidos no funil.</span>
+              ) : (
+                <span>Otimize o processo de vendas com base no feedback das propostas perdidas.</span>
+              )}
             </div>
           </div>
         </div>
