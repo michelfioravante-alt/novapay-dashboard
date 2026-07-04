@@ -73,9 +73,8 @@ O painel foi estruturado e refinado para refletir o dialeto comercial padrão do
 - **Visual Management (Andon) & Sincronização em Tempo Real:** Um indicador de status em semáforo (Verde, Amarelo, Vermelho) sinaliza a estabilidade financeira com base no atingimento da meta daquele período. Todas as alterações e novas oportunidades criadas pelo vendedor atualizam a tela do gestor de forma reativa e instantânea via Supabase Realtime.
 - **Standard Work comercial:** O painel do vendedor conta com uma checklist diária de processos padrão que ajuda a evitar desvios no fluxo de trabalho.
 
-### 3. Plano de Ação (Antigo ACT)
-- **Análise dos 5 Porquês:** Ao selecionar uma venda com status "Perdido", o gestor pode desdobrar os motivos no formulário de "5 Porquês" para descobrir a causa raiz do desvio comercial.
-- **Planos de Ação 5W2H:** A submissão da análise gera automaticamente uma ação corretiva no quadro de planos de ação, permitindo que a equipe planeje, acompanhe (Em Andamento/Concluído) e neutralize desvios de processo.
+### 3. Painel de Negociações & CRM
+- **Quadro Kanban Interativo (CRM):** Substitui ou complementa a listagem de propostas do vendedor por um quadro visual Kanban (drag-and-drop) para os estágios abertos (*Em Negociação*, *Ganho*, *Perdido*), facilitando a rotina de follow-up do vendedor e salvando as posições/status direto no banco de dados.
 
 ---
 
@@ -109,5 +108,5 @@ graph TD
 1. **Testes Unitários e de Integração:** Desenvolveria suites de testes usando Jest e Testing Library para validar o roteamento e a simulação de RLS.
 2. **Dashboard n8n Executável:** Disponibilizaria o n8n hospedado na nuvem (em vez do arquivo exportado) com integrações com serviços reais de e-mail (SendGrid) e WhatsApp API para demonstrar a notificação funcionando ao vivo.
 3. **Pipeline de CI/CD Completo:** Configuração de GitHub Actions para rodar testes automatizados e linters a cada Pull Request, garantindo que o deploy na Vercel só ocorra após a validação completa da qualidade do código.
-4. **Visualização Kanban de Negociações:** Substituiria ou integraria a listagem de propostas por um quadro visual Kanban (drag-and-drop) para os estágios abertos, facilitando a rotina de follow-up do vendedor.
-5. **Múltiplos Estágios de Pipeline no Banco:** Desmembraria o status genérico de `'em_negociacao'` em fases granulares no Postgres (`prospecção`, `diagnóstico`, `proposta` e `ajustes finais`), otimizando o mapeamento real do funil e cruzando taxas de drop-off por etapa.
+4. **Múltiplos Estágios de Pipeline no Banco:** Desmembraria o status genérico de `'em_negociacao'` em fases granulares no Postgres (`prospecção`, `diagnóstico`, `proposta` e `ajustes finais`), otimizando o mapeamento real do funil e cruzando taxas de drop-off por etapa.
+5. **Autenticação Real de Vendedores (Sign-Up / Roles):** Fazer o login real de cada vendedor atrelado diretamente à sua respectiva conta de autenticação no Supabase.
