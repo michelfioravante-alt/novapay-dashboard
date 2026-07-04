@@ -5,41 +5,32 @@ import {
   Legend, Cell, PieChart, Pie
 } from 'recharts';
 import { 
-  TrendingUp, DollarSign, Target, UserCheck, AlertOctagon, 
-  Clock, Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X
+  Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp
 } from 'lucide-react';
 
-interface MetricCardProps {
-  title: string;
+interface ReadoutCardProps {
+  label: string;
   value: string | number;
-  subtext: string;
-  icon: React.ReactNode;
-  trend?: 'up' | 'down' | 'neutral';
-  trendText?: string;
+  foot?: string;
+  footRight?: string;
+  footRightColor?: 'pos' | 'neg' | 'warn';
+  hero?: boolean;
 }
 
-function MetricCard({ title, value, subtext, icon, trend, trendText }: MetricCardProps) {
+function ReadoutCard({ label, value, foot, footRight, footRightColor, hero }: ReadoutCardProps) {
+  const rightColor = footRightColor === 'pos' ? 'text-[#7FA88C]' : footRightColor === 'neg' ? 'text-[#B5504B]' : footRightColor === 'warn' ? 'text-[#C9A227]' : 'text-[#7C868A]';
   return (
-    <div className="bg-[#14181A] border-r border-b border-[#23282B] p-6 flex flex-col justify-between">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{title}</p>
-          <h3 className="text-2xl font-extrabold text-white mt-2 tracking-tight font-mono">{value}</h3>
-        </div>
-        <div className="h-10 w-10 border border-[#23282B] bg-[#0E1113] flex items-center justify-center text-slate-300 flex-shrink-0">
-          {icon}
-        </div>
+    <div className="bg-[#14181A] border-r border-b border-[#23282B] p-[22px] flex flex-col justify-between">
+      <div>
+        <p className="text-[11px] font-medium text-[#7C868A] uppercase tracking-[0.06em]">{label}</p>
+        <p className={`font-mono font-bold text-white mt-3 mb-2.5 ${hero ? 'text-[34px]' : 'text-[26px]'}`}>{value}</p>
       </div>
-      <div className="mt-4 pt-4 border-t border-[#23282B] flex items-center justify-between text-xs text-slate-500">
-        <span>{subtext}</span>
-        {trend && (
-          <span className={`flex items-center gap-1 font-bold font-mono ${
-            trend === 'up' ? 'text-[#7FA88C]' : trend === 'down' ? 'text-[#B5504B]' : 'text-slate-400'
-          }`}>
-            {trendText}
-          </span>
-        )}
-      </div>
+      {(foot || footRight) && (
+        <div className="flex items-center justify-between text-[11.5px] text-[#7C868A] pt-3 border-t border-[#1A1F21]">
+          {foot && <span>{foot}</span>}
+          {footRight && <span className={`font-mono font-bold ${rightColor}`}>{footRight}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -410,8 +401,9 @@ export default function GestorDashboard() {
   const totalClientes = clientes.length;
   const ativos = clientes.filter(c => c.status === 'ativo').length;
   const inativos = clientes.filter(c => c.status === 'inativo').length;
-  const taxaRetencao = totalClientes > 0 ? (ativos / totalClientes) * 100 : 100;
-  const taxaChurn = totalClientes > 0 ? (inativos / totalClientes) * 100 : 0;
+  const _taxaRetencao = totalClientes > 0 ? (ativos / totalClientes) * 100 : 100;
+  const _taxaChurn = totalClientes > 0 ? (inativos / totalClientes) * 100 : 0;
+  void _taxaRetencao; void _taxaChurn;
 
   // =========================================================================
   // SUBMISSÃO DE PLANOS DE AÇÃO (PDCA)
@@ -424,34 +416,42 @@ export default function GestorDashboard() {
 
     setSubmittingKaizen(true);
     try {
-      // Agrupa 5 porquês formatados
-      const causaraiz = whys.filter(w => w.trim() !== '').map((w, i) => `${i + 1}°: ${w}`).join(' | ');
-      
-      const { error } = await supabase
+      const rootCause = whys.filter(w => w.trim() !== '').pop() || 'Causa raiz não detalhada';
+      const causaCadeia = whys.filter(w => w.trim() !== '').join(' -> ');
+
+      // 1. Atualizar a venda com o motivo de perda detalhado (causa raiz)
+      await supabase
+        .from('vendas')
+        .update({ motivo_perda: causaCadeia })
+        .eq('id', selectedVendaPerdida);
+
+      // 2. Inserir a Ação Corretiva no Plano de Ação 5W2H
+      const { error: actionError } = await supabase
         .from('pdca_acoes')
         .insert([
           {
             venda_id: selectedVendaPerdida,
-            causa_raiz: causaraiz || 'Não classificado',
             descricao: actionDesc,
             responsavel: actionResponsavel,
             prazo: actionPrazo,
+            causa_raiz: rootCause,
             status: 'planejada'
           }
         ]);
 
-      if (error) throw error;
+      if (actionError) throw actionError;
 
-      // Reset
+      // Limpar formulário
       setSelectedVendaPerdida('');
       setWhys(['', '', '', '', '']);
       setActionDesc('');
       setActionResponsavel('');
       setActionPrazo('');
       
+      // Recarregar dados
       loadData();
     } catch (error) {
-      console.error('Erro ao salvar Kaizen:', error);
+      console.error('Erro ao registrar Kaizen:', error);
     } finally {
       setSubmittingKaizen(false);
     }
@@ -564,27 +564,25 @@ export default function GestorDashboard() {
   const pctClientes = metaNovosClientesTotal > 0 ? (novosClientesCadastrados / metaNovosClientesTotal) * 100 : 0;
 
   return (
-    <div className="p-6 space-y-6 flex-1 flex flex-col pb-20 md:pb-6">
+    <div className="max-w-[1160px] mx-auto w-full px-4 sm:px-7 py-8 pb-20 md:pb-12 space-y-11">
       {/* Barra de Filtros de Período e Andon Light */}
-      <div className="flex flex-col xl:flex-row gap-4 items-stretch xl:items-center justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Painel Gestor</span>
-          <div className="h-4 w-px bg-slate-800 hidden md:block"></div>
-          <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#23282B] pb-4">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="periods flex gap-6">
             <button
               id="filter-period-july"
               onClick={() => setPeriod('2026-07')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                period === '2026-07' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              className={`text-xs font-semibold pb-2 transition-all border-b-2 ${
+                period === '2026-07' ? 'text-white border-[#C9A227]' : 'text-slate-500 border-transparent hover:text-slate-300'
               }`}
             >
-              Julho (Atual)
+              Julho
             </button>
             <button
               id="filter-period-june"
               onClick={() => setPeriod('2026-06')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                period === '2026-06' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              className={`text-xs font-semibold pb-2 transition-all border-b-2 ${
+                period === '2026-06' ? 'text-white border-[#C9A227]' : 'text-slate-500 border-transparent hover:text-slate-300'
               }`}
             >
               Junho
@@ -592,8 +590,8 @@ export default function GestorDashboard() {
             <button
               id="filter-period-may"
               onClick={() => setPeriod('2026-05')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                period === '2026-05' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              className={`text-xs font-semibold pb-2 transition-all border-b-2 ${
+                period === '2026-05' ? 'text-white border-[#C9A227]' : 'text-slate-500 border-transparent hover:text-slate-300'
               }`}
             >
               Maio
@@ -601,26 +599,26 @@ export default function GestorDashboard() {
             <button
               id="filter-period-q2"
               onClick={() => setPeriod('Q2-2026')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                period === 'Q2-2026' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              className={`text-xs font-semibold pb-2 transition-all border-b-2 ${
+                period === 'Q2-2026' ? 'text-white border-[#C9A227]' : 'text-slate-500 border-transparent hover:text-slate-300'
               }`}
             >
-              2º Trimestre (Q2)
+              2º Trimestre
             </button>
           </div>
 
           {/* Filtro por Vendedor */}
-          <div className="flex bg-[#14181A] border border-[#23282B] p-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase px-2 self-center">Filtrar Vendedor:</span>
+          <div className="flex items-center bg-[#14181A] border border-[#23282B] px-2 py-0.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pr-2">Vendedor:</span>
             <select
               id="filter-vendedor-select"
               value={selectedVendedorFilter}
               onChange={(e) => setSelectedVendedorFilter(e.target.value)}
-              className="bg-[#0E1113] border border-[#23282B] text-xs font-semibold text-white px-2 py-1 focus:outline-none focus:border-[#C9A227] rounded-none"
+              className="bg-transparent text-xs font-semibold text-white py-1 focus:outline-none rounded-none border-none cursor-pointer"
             >
               <option value="todos">Todos os Vendedores</option>
               {vendedores.map(v => (
-                <option key={v.id} value={v.id}>{v.nome}</option>
+                <option key={v.id} value={v.id} className="bg-[#14181A]">{v.nome}</option>
               ))}
             </select>
           </div>
@@ -630,138 +628,102 @@ export default function GestorDashboard() {
           <button
             id="btn-refresh-data"
             onClick={handleRefresh}
-            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-all flex items-center justify-center gap-2"
+            className="p-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-slate-400 hover:text-white transition-all flex items-center justify-center"
             title="Atualizar Dados"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
-
-          {/* Status de Performance (SLA) */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-950/40 border border-slate-800/80">
-            <span className="andon-indicator">
-              <span className={`andon-indicator-ring ${
-                pctReceita >= 95 ? 'bg-emerald-500' : pctReceita >= 70 ? 'bg-amber-500' : 'bg-red-500'
-              }`}></span>
-              <span className={`andon-indicator-dot ${
-                pctReceita >= 95 ? 'bg-emerald-500' : pctReceita >= 70 ? 'bg-amber-500' : 'bg-red-500'
-              }`}></span>
-            </span>
-            <span className="text-xs font-bold text-slate-300 font-mono">
-              Status: {pctReceita >= 95 ? 'Performance Dentro da Meta (Verde)' : pctReceita >= 70 ? 'Risco de Desvio (Amarelo)' : 'Ação Necessária: Crítico (Vermelho)'}
-            </span>
+          <div className="text-[10.5px] uppercase tracking-widest text-[#4A5256] font-medium">
+            Sincronizado automaticamente
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          SEÇÃO METAS - Metas Estabelecidas
+          GAUGE — Calibração de Faturamento vs Meta
           ========================================================================= */}
-      <div className={`space-y-3 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
-            <Target className="w-4 h-4" /> Metas do Período — Objetivos Estratégicos
-          </h2>
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <button
-              id="btn-add-vendedor-modal"
-              onClick={() => setIsVendedorModalOpen(true)}
-              className="flex-1 md:flex-none px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center justify-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
-            </button>
-            {period !== 'Q2-2026' && (
-              <button
-                id="btn-edit-goals"
-                onClick={openGoalModal}
-                className="flex-1 md:flex-none px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center justify-center gap-1.5"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> Editar Metas
-              </button>
+      <div className={mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}>
+        {/* Header da Gauge com botões de gestão */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
+          <div>
+            <p className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] mb-1">Faturamento do período face à meta</p>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <button
+                  id="btn-add-vendedor-modal"
+                  onClick={() => setIsVendedorModalOpen(true)}
+                  className="flex-1 md:flex-none px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
+                </button>
+                {period !== 'Q2-2026' && (
+                  <button
+                    id="btn-edit-goals"
+                    onClick={openGoalModal}
+                    className="flex-1 md:flex-none px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center justify-center gap-1.5"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" /> Editar Metas
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="text-xs text-[#B5504B] flex items-center gap-1.5 flex-shrink-0">
+            <span className="w-2 h-2 bg-[#B5504B] inline-block"></span>
+            {metaReceitaTotal > 0 && (
+              <span>
+                {(metaReceitaTotal > 0 ? ((metaReceitaTotal - totalEntradas) / metaReceitaTotal * 100) : 0).toFixed(0)}% restante · {pctReceita < 70 ? 'abaixo do limiar de segurança' : pctReceita >= 100 ? 'meta atingida' : 'dentro da zona de atenção'}
+              </span>
             )}
           </div>
         </div>
 
-        {/* Régua de Calibração (Faturamento vs Meta) - Posição de Destaque no Planejamento */}
-        <div className="bg-[#14181A] border border-[#23282B] p-5 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs text-slate-400">
-            <span className="font-semibold uppercase tracking-wider flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-brand-500"></span> Régua de Calibração de Faturamento
-            </span>
-            <span className="font-mono text-white text-sm">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}{' '}
-              / {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metaReceitaTotal)}{' '}
-              ({pctReceita.toFixed(1)}%)
-            </span>
-          </div>
-          
-          <div className="h-8 bg-[#0E1113] border border-[#23282B] relative w-full overflow-hidden">
-            {/* Fill correspondente ao faturamento real */}
-            <div 
-              className={`h-full ${
-                pctReceita >= 70 ? 'bg-[#7FA88C]' : 'bg-[#B5504B]'
-              }`}
+        {/* Track — linha fina tipo instrumento de medição */}
+        <div className="relative h-16">
+          <div className="relative h-[2px] bg-[#23282B] mt-7">
+            {/* Zona crítica (0–70%) */}
+            <div className="absolute top-0 left-0 h-[2px] bg-[rgba(181,80,75,0.12)]" style={{ width: '70%' }}></div>
+            {/* Fill atual */}
+            <div
+              className="absolute top-0 left-0 h-[2px] bg-[#7C868A] transition-all duration-700"
               style={{ width: `${Math.min(pctReceita, 100)}%` }}
             ></div>
-            
-            {/* Limiar de Zona Crítica (70%) fixo */}
-            <div className="absolute top-0 bottom-0 left-[70%] w-px bg-[#B5504B]" title="Limiar Crítico (70%)">
-              <span className="absolute top-1/2 -translate-y-1/2 left-2 text-[9px] font-bold text-[#B5504B] tracking-wider uppercase bg-[#0E1113]/85 px-1 border border-[#23282B] font-mono">
-                70% CRÍTICO
-              </span>
-            </div>
-
-            {/* Marcador de Meta (100%) - Destaque com Accent Accent */}
-            <div className="absolute top-0 bottom-0 left-[99.5%] w-0.5 bg-[#C9A227]" title="Meta (100%)">
-              <span className="absolute top-1/2 -translate-y-1/2 right-2 text-[9px] font-bold text-[#C9A227] tracking-wider uppercase bg-[#0E1113]/85 px-1 border border-[#23282B] font-mono">
-                META 100%
-              </span>
+            {/* Marcador 70% */}
+            <div className="absolute top-[-9px] h-5 w-[2px] bg-[#C9A227]" style={{ left: '70%' }}>
+              <span className="absolute top-[-22px] left-1/2 -translate-x-1/2 text-[11px] font-mono text-[#C9A227] whitespace-nowrap">70% · limiar</span>
             </div>
           </div>
-        </div>
-
-        {/* Grid de Metas Secundárias (colapsado) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 border-t border-l border-[#23282B] bg-[#14181A]">
-          <div className="border-r border-b border-[#23282B] p-5 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Meta de Faturamento Estimada</p>
-              <h4 className="text-xl font-bold text-white mt-1 font-mono">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metaReceitaTotal)}
-              </h4>
-            </div>
-            <div className="h-10 w-10 border border-[#23282B] bg-[#0E1113] flex items-center justify-center text-slate-400 font-bold font-mono">
-              $
-            </div>
-          </div>
-          <div className="border-r border-b border-[#23282B] p-5 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Meta de Novos Clientes</p>
-              <h4 className="text-xl font-bold text-white mt-1 font-mono">{metaNovosClientesTotal} clientes</h4>
-            </div>
-            <div className="h-10 w-10 border border-[#23282B] bg-[#0E1113] flex items-center justify-center text-slate-400 font-bold font-mono">
-              #
-            </div>
+          {/* Ticks */}
+          <div className="flex justify-between mt-1.5">
+            {(['R$ 0', 'R$ 25K', 'R$ 50K', 'R$ 75K',
+              `${new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(metaReceitaTotal)} — meta`
+            ]).map(t => (
+              <span key={t} className="text-[10px] font-mono text-[#4A5256]">{t}</span>
+            ))}
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          SEÇÃO RESULTADOS & DIAGNÓSTICO - KPIs de Performance Financeira e Comercial
+          SEÇÃO RESULTADOS — KPIs
           ========================================================================= */}
-      <div className={`space-y-4 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
-        <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
-          <ClipboardList className="w-4 h-4" /> Resultados & Diagnóstico — Análise de Performance
-        </h2>
+      <div className={`space-y-8 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
+        {/* Section label */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Resultados do período</span>
+          <div className="flex-1 h-px bg-[#23282B]"></div>
+        </div>
 
         {/* Alertas de Desvios Comerciais (se houver) */}
         {alertas.filter(a => !a.resolvido).length > 0 && (
           <div className="border border-[#B5504B] bg-[#14181A] p-5 space-y-3">
             <div className="flex items-center gap-2 text-[#B5504B] font-bold text-sm">
-              <AlertOctagon className="w-4.5 h-4.5" />
-              <span>Painel de Desvios Comerciais (SLA Alert)</span>
+              <AlertOctagon className="w-4 h-4" />
+              <span>Desvios Comerciais Detectados</span>
             </div>
             <div className="space-y-2">
               {alertas.filter(a => !a.resolvido).map(alerta => (
-                <div key={alerta.id} className="text-xs text-slate-300 leading-relaxed bg-[#0E1113] p-3 border border-[#23282B] flex items-center justify-between">
+                <div key={alerta.id} className="text-xs text-[#D8DEE1] leading-relaxed bg-[#0E1113] p-3 border border-[#23282B] flex items-center justify-between">
                   <span>{alerta.mensagem}</span>
                   <span className="text-[10px] px-2 py-0.5 border border-[#B5504B]/20 text-[#B5504B] bg-[#B5504B]/5 font-mono uppercase font-bold">n8n trigger</span>
                 </div>
@@ -770,50 +732,52 @@ export default function GestorDashboard() {
           </div>
         )}
 
-        {/* Cards de Métricas Principais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border-t border-l border-[#23282B] bg-[#14181A]">
-          <MetricCard
-            title="Receita Realizada"
-            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
-            subtext={isCurrentMonth 
-              ? `Proj. Fim do Mês: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(projectedRevenue)}`
-              : `${pctReceita.toFixed(1)}% atingido da meta`
-            }
-            icon={<DollarSign className="w-5 h-5 text-emerald-500" />}
-            trend={pctReceita >= 95 ? 'up' : pctReceita >= 70 ? 'neutral' : 'down'}
-            trendText={pctReceita >= 100 ? 'Meta Superada' : `${pctReceita.toFixed(0)}%`}
+        {/* Readout Grid (hero + 3 cards) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-[#23282B] border border-[#23282B]">
+          <ReadoutCard
+            label="Receita Realizada"
+            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalEntradas)}
+            foot={isCurrentMonth ? `Proj. mês: ${new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(projectedRevenue)}` : `${pctReceita.toFixed(1)}% da meta`}
+            footRight={pctReceita >= 100 ? '↑ Meta' : `${pctReceita.toFixed(0)}%`}
+            footRightColor={pctReceita >= 95 ? 'pos' : pctReceita >= 70 ? 'warn' : 'neg'}
+            hero
           />
-          <MetricCard
-            title="Ticket Médio"
-            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ticketMedio)}
-            subtext="Média por contrato fechado"
-            icon={<Target className="w-5 h-5 text-brand-500" />}
+          <ReadoutCard
+            label="Ticket Médio"
+            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(ticketMedio)}
+            foot="por contrato fechado"
           />
-          <MetricCard
-            title="Saldo Operacional"
-            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoOperacional)}
-            subtext={`Despesas totais: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSaidas)}`}
-            icon={<TrendingUp className={`w-5 h-5 ${saldoOperacional >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />}
-            trend={saldoOperacional >= 0 ? 'up' : 'down'}
-            trendText={saldoOperacional >= 0 ? 'Positivo' : 'Déficit'}
+          <ReadoutCard
+            label="Saldo Operacional"
+            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(saldoOperacional)}
+            foot={`despesas ${new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(totalSaidas)}`}
+            footRight={saldoOperacional >= 0 ? 'positivo' : 'déficit'}
+            footRightColor={saldoOperacional >= 0 ? 'pos' : 'neg'}
           />
-          <MetricCard
-            title="Novos Clientes"
-            value={`${novosClientesCadastrados} clientes`}
-            subtext={`Retenção de Base: ${taxaRetencao.toFixed(0)}% Ativos (Churn: ${taxaChurn.toFixed(0)}%)`}
-            icon={<UserCheck className="w-5 h-5 text-emerald-500" />}
-            trend={pctClientes >= 100 ? 'up' : 'neutral'}
-            trendText={`${novosClientesCadastrados}/${metaNovosClientesTotal}`}
+          <ReadoutCard
+            label="Novos Clientes"
+            value={`${novosClientesCadastrados} / ${metaNovosClientesTotal}`}
+            foot={`${pctClientes.toFixed(0)}% da meta`}
+            footRight={metaNovosClientesTotal > novosClientesCadastrados ? `faltam ${metaNovosClientesTotal - novosClientesCadastrados}` : 'atingido'}
+            footRightColor={pctClientes >= 100 ? 'pos' : 'warn'}
           />
         </div>
 
-        {/* Gráfico de Histórico e Pipeline */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A]">
+        {/* Histórico e Pipeline */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Histórico e pipeline</span>
+          <div className="flex-1 h-px bg-[#23282B]"></div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-[#23282B] border border-[#23282B]">
           {/* Gráfico de Evolução 6 Meses */}
-          <div className="p-4 sm:p-6 lg:col-span-2 border-r border-b border-[#23282B] space-y-4">
+          <div className="bg-[#14181A] p-6 space-y-3">
             <div>
-              <h3 className="text-sm font-bold text-white tracking-tight">Fluxo de Caixa Acumulado (Últimos 6 meses)</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Visão histórica consolidada de Faturamento e Despesas Operacionais</p>
+              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Fluxo de caixa acumulado</h3>
+              <p className="text-xs text-[#7C868A] mt-1">Últimos 6 meses</p>
+              <div className="flex gap-4 mt-3 text-[11px] text-[#7C868A]">
+                <span className="flex items-center gap-1.5"><span className="inline-block w-[10px] h-[2px] bg-[#D8DEE1]"></span>Faturamento</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block w-[10px] h-[2px] bg-[#5A6266]"></span>Despesas</span>
+              </div>
             </div>
             <div className="h-72 w-full text-xs">
               <ResponsiveContainer width="100%" height="100%">
@@ -847,11 +811,11 @@ export default function GestorDashboard() {
             </div>
           </div>
 
-          {/* Gráfico do Pipeline de Vendas */}
-          <div className="p-4 sm:p-6 border-r border-b border-[#23282B] space-y-4 flex flex-col justify-between">
+          {/* Pipeline de Vendas */}
+          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
             <div>
-              <h3 className="text-sm font-bold text-white tracking-tight">Pipeline de Vendas (Funil Comercial)</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Distribuição do status das negociações do período</p>
+              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Pipeline de vendas</h3>
+              <p className="text-xs text-[#7C868A] mt-1">Status das negociações do período</p>
             </div>
             
             <div className="h-44 w-full flex items-center justify-center relative">
@@ -884,82 +848,46 @@ export default function GestorDashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center text-xs border-t border-[#23282B] pt-4">
+            {/* KPI Strip */}
+            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B] mt-4">
               {pipelineData.map(entry => (
-                <div key={entry.name}>
-                  <div className="flex items-center justify-center gap-1.5 text-slate-400">
-                    <span className="h-2 w-2" style={{ backgroundColor: entry.color }}></span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{entry.name}</span>
-                  </div>
-                  <p className="text-base font-extrabold text-white mt-1 font-mono">{entry.value}</p>
+                <div key={entry.name} className="bg-[#14181A] p-3 text-center">
+                  <div className="text-[9.5px] font-medium text-[#4A5256] uppercase tracking-[0.05em]">{entry.name}</div>
+                  <div className="font-mono text-[17px] mt-1" style={{ color: entry.color }}>{entry.value}</div>
                 </div>
               ))}
-            </div>
-
-            <div className="border-t border-[#23282B] pt-4 space-y-2.5">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Funil de Conversão Comercial</span>
-              
-              <div className="space-y-2 text-[10px]">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-slate-300 font-semibold">
-                    <span>1. Oportunidades Totais (Entrada)</span>
-                    <span className="font-mono text-white font-bold">{totalOportunidades} (100%)</span>
-                  </div>
-                  <div className="h-2 bg-[#0E1113] border border-[#23282B] rounded-none overflow-hidden">
-                    <div className="h-full bg-slate-600" style={{ width: '100%' }}></div>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-slate-300 font-semibold">
-                    <span>2. Negociações Ativas (MoFu)</span>
-                    <span className="font-mono text-[#C9A227] font-bold">
-                      {countNegociacao} ({totalOportunidades > 0 ? ((countNegociacao / totalOportunidades) * 100).toFixed(0) : 0}%)
-                    </span>
-                  </div>
-                  <div className="h-2 bg-[#0E1113] border border-[#23282B] rounded-none overflow-hidden">
-                    <div className="h-full bg-[#C9A227]" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades) * 100 : 0}%` }}></div>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-slate-300 font-semibold">
-                    <span>3. Negócios Ganhos (BoFu)</span>
-                    <span className="font-mono text-[#7FA88C] font-bold">
-                      {countGanho} ({conversionRate.toFixed(0)}%)
-                    </span>
-                  </div>
-                  <div className="h-2 bg-[#0E1113] border border-[#23282B] rounded-none overflow-hidden">
-                    <div className="h-full bg-[#7FA88C]" style={{ width: `${conversionRate}%` }}></div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Tabelas de Qualidade e Processos */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 border-t border-l border-[#23282B] bg-[#14181A]">
-          {/* Top 5 Clientes por Faturamento e Conversão */}
-          <div className="p-6 border-r border-b border-[#23282B] space-y-4">
-            <h3 className="text-sm font-bold text-white tracking-tight">Top 5 Clientes por Faturamento</h3>
+        {/* Tabelas de Qualidade */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Clientes e ranking</span>
+          <div className="flex-1 h-px bg-[#23282B]"></div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-[#23282B] border border-[#23282B]">
+          {/* Top 5 Clientes por Faturamento */}
+          <div className="bg-[#14181A] p-6 space-y-4">
+            <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Top 5 clientes por faturamento</h3>
+            <p className="text-xs text-[#7C868A] -mt-2">Período corrente</p>
             {top5Clientes.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full text-left border-collapse" style={{ fontSize: '12.5px' }}>
                   <thead>
-                    <tr className="border-b border-[#23282B] text-slate-500 uppercase tracking-widest font-bold">
-                      <th className="py-3 pr-4">Cliente</th>
-                      <th className="py-3 px-4">Segmento</th>
-                      <th className="py-3 pl-4 text-right">Faturamento</th>
+                    <tr className="border-b border-[#23282B]">
+                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Cliente</th>
+                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Segmento</th>
+                      <th className="pb-2.5 text-right text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Faturamento</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#23282B]/60 text-slate-300 font-medium">
+                  <tbody>
                     {top5Clientes.map((client, index) => (
-                      <tr key={index} className="hover:bg-[#0E1113] transition-colors">
-                        <td className="py-3.5 pr-4 text-white font-semibold">{client.nome}</td>
-                        <td className="py-3.5 px-4">{client.segmento}</td>
-                        <td className="py-3.5 pl-4 text-right text-[#7FA88C] font-bold font-mono">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.valor)}
+                      <tr key={index} className="border-b border-[#1A1F21]">
+                        <td className="py-3.5 pr-4 text-[#D8DEE1] font-medium">{client.nome}</td>
+                        <td className="py-3.5 px-4 text-[#4A5256]" style={{ fontSize: '11.5px' }}>{client.segmento}</td>
+                        <td className="py-3.5 text-right font-mono" style={{ fontSize: '12.5px' }}>
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(client.valor)}
                         </td>
                       </tr>
                     ))}
@@ -971,56 +899,51 @@ export default function GestorDashboard() {
             )}
           </div>
 
-          {/* Ranking e Fluxo (Lead Time / Conversão) */}
-          <div className="p-6 border-r border-b border-[#23282B] space-y-5">
-            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
-              <h3 className="text-sm font-bold text-white tracking-tight">Ranking Comercial de Vendedores</h3>
-              <div className="flex items-center gap-1 bg-[#0E1113] px-2.5 py-1 border border-[#23282B] text-[10px] font-mono text-slate-400 font-bold uppercase">
-                <Clock className="w-3.5 h-3.5 text-brand-500" /> Lead Time Médio: <span className="font-mono">{leadTimeMedio.toFixed(1)} dias</span>
-              </div>
+          {/* Ranking Comercial */}
+          <div className="bg-[#14181A] p-6 space-y-5">
+            <div className="flex items-baseline justify-between">
+              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Ranking comercial</h3>
+              <p className="text-xs text-[#7C868A]">lead time médio: {leadTimeMedio.toFixed(1)}d</p>
             </div>
 
-            <div className="grid grid-cols-3 border-t border-l border-[#23282B] bg-[#0E1113] pb-0">
-              <div className="border-r border-b border-[#23282B] p-4 text-center">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Oportunidades</span>
-                <span className="text-xl font-extrabold text-white mt-1 block font-mono">{totalOportunidades}</span>
-              </div>
-              <div className="border-r border-b border-[#23282B] p-4 text-center">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Conversão</span>
-                <span className="text-xl font-extrabold text-[#7FA88C] mt-1 block font-mono">{conversionRate.toFixed(1)}%</span>
-              </div>
-              <div className="border-r border-b border-[#23282B] p-4 text-center">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Lead Time</span>
-                <span className="text-xl font-extrabold text-brand-500 mt-1 block font-mono">{leadTimeMedio.toFixed(1)} d</span>
-              </div>
-            </div>
-
-            {/* Lista Leaderboard */}
-            <div className="space-y-3.5">
+            <div className="space-y-0">
               {rankingVendedores.map((vend, index) => (
-                <div key={index} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2.5">
-                    <span className={`h-6 w-6 flex items-center justify-center font-bold text-[10px] ${
-                      index === 0 ? 'bg-brand-500/10 text-brand-400 border border-brand-500/30' : 'bg-slate-800 text-slate-400 border border-[#23282B]'
-                    }`}>
-                      {index + 1}
-                    </span>
-                    <span className="font-semibold text-slate-200">{vend.nome}</span>
+                <div key={index} className="flex justify-between items-center py-[11px] border-b border-[#1A1F21]">
+                  <div className="flex items-center gap-3">
+                    <span className={`font-mono text-[11px] w-4 ${
+                      index === 0 ? 'text-[#C9A227]' : 'text-[#4A5256]'
+                    }`}>{String(index + 1).padStart(2, '0')}</span>
+                    <span className="text-[#D8DEE1] font-medium" style={{ fontSize: '12.5px' }}>{vend.nome}</span>
                   </div>
-                  <span className="font-extrabold font-mono text-slate-100">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(vend.valor)}
+                  <span className="font-mono" style={{ fontSize: '12.5px' }}>
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.valor)}
                   </span>
                 </div>
               ))}
             </div>
+
+            {/* KPI Strip */}
+            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B]">
+              <div className="bg-[#14181A] p-3 text-center">
+                <div className="text-[9.5px] font-medium text-[#4A5256] uppercase tracking-[0.05em]">Oportunidades</div>
+                <div className="font-mono text-[17px] mt-1">{totalOportunidades}</div>
+              </div>
+              <div className="bg-[#14181A] p-3 text-center">
+                <div className="text-[9.5px] font-medium text-[#4A5256] uppercase tracking-[0.05em]">Conversão</div>
+                <div className="font-mono text-[17px] mt-1 text-[#7FA88C]">{conversionRate.toFixed(1)}%</div>
+              </div>
+              <div className="bg-[#14181A] p-3 text-center">
+                <div className="text-[9.5px] font-medium text-[#4A5256] uppercase tracking-[0.05em]">Lead Time</div>
+                <div className="font-mono text-[17px] mt-1">{leadTimeMedio.toFixed(1)}d</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Novas Métricas Analíticas Realistas (Diferenciais RevOps & Finanças) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 border-t border-l border-[#23282B] bg-[#14181A]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-[#23282B] border border-[#23282B]">
           {/* Ticket Médio por Segmento de Cliente */}
-          <div className="p-6 border-r border-b border-[#23282B] space-y-4">
-            <h3 className="text-sm font-bold text-white tracking-tight">Ticket Médio por Segmento de Cliente</h3>
+          <div className="bg-[#14181A] p-6 space-y-4">
+            <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Ticket médio por segmento</h3>
             <div className="space-y-3.5 pt-1.5">
               {Object.entries(ticketMedioPorSegmento).map(([segmento, dados]: any) => (
                 <div key={segmento} className="flex items-center justify-between text-xs border-b border-[#23282B]/30 pb-2">
@@ -1040,8 +963,8 @@ export default function GestorDashboard() {
           </div>
 
           {/* Distribuição de Despesas por Categoria */}
-          <div className="p-6 border-r border-b border-[#23282B] space-y-4">
-            <h3 className="text-sm font-bold text-white tracking-tight">Distribuição de Despesas Corporativas</h3>
+          <div className="bg-[#14181A] p-6 space-y-4">
+            <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Distribuição de despesas</h3>
             <div className="space-y-3.5 pt-1.5">
               {Object.entries(despesasPorCategoria).map(([categoria, valor]: any) => {
                 const pctDespesa = totalSaidas > 0 ? (valor / totalSaidas) * 100 : 0;
@@ -1069,9 +992,10 @@ export default function GestorDashboard() {
           SEÇÃO PLANO DE AÇÃO - Melhoria e Ajustes
           ========================================================================= */}
       <div className={`space-y-6 ${mobileTab !== 'dashboard' ? 'block' : 'hidden md:block'}`}>
-        <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5 hidden md:flex">
-          <RefreshCw className="w-4 h-4" /> Plano de Ação — Otimização Comercial
-        </h2>
+        <div className="flex items-center gap-3 hidden md:flex">
+          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Plano de ação comercial</span>
+          <div className="flex-1 h-px bg-[#23282B]"></div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 border-t border-l border-[#23282B] bg-[#14181A]">
           {/* Diagnóstico de Vendas Perdidas */}
@@ -1209,9 +1133,9 @@ export default function GestorDashboard() {
             <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
               <div>
                 <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
-                  <ClipboardList className="w-4 h-4 text-brand-400" /> Quadro de Planos de Ação Comercial
+                  <ClipboardList className="w-4 h-4 text-brand-400" /> Quadro de Planos de Ação (5W2H)
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Ações de mitigação de objeções e otimização do fluxo de vendas</p>
+                <p className="text-xs text-slate-500 mt-0.5">Ações para mitigação de perdas e melhoria contínua de processos</p>
               </div>
             </div>
 
@@ -1441,13 +1365,6 @@ export default function GestorDashboard() {
               )}
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Mês de Referência</label>
-                <div className="w-full bg-[#0E1113] border border-[#23282B] px-3 py-2 text-xs font-semibold text-white capitalize">
-                  {period === '2026-07' ? 'Julho / 2026' : period === '2026-06' ? 'Junho / 2026' : 'Maio / 2026'}
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
                 <label htmlFor="input-goal-revenue" className="text-[10px] font-bold text-slate-400 uppercase">Meta de Receita (R$)</label>
                 <input
                   id="input-goal-revenue"
@@ -1457,7 +1374,7 @@ export default function GestorDashboard() {
                   placeholder="Ex: 100000.00"
                   value={inputMetaReceita}
                   onChange={(e) => setInputMetaReceita(e.target.value)}
-                  className="w-full glass-input text-xs font-mono"
+                  className="w-full glass-input text-xs"
                 />
               </div>
 
@@ -1470,7 +1387,7 @@ export default function GestorDashboard() {
                   placeholder="Ex: 10"
                   value={inputMetaClientes}
                   onChange={(e) => setInputMetaClientes(e.target.value)}
-                  className="w-full glass-input text-xs font-mono"
+                  className="w-full glass-input text-xs"
                 />
               </div>
 
@@ -1498,7 +1415,7 @@ export default function GestorDashboard() {
                 <Plus className="w-4.5 h-4.5 text-[#C9A227]" /> Cadastrar Novo Vendedor
               </h3>
               <button onClick={() => setIsVendedorModalOpen(false)} className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white">
-                <X className="w-4.5 h-4.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 

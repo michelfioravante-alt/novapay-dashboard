@@ -3,7 +3,7 @@ import { supabase } from './lib/supabaseClient';
 import Login from './components/Login';
 import GestorDashboard from './components/GestorDashboard';
 import VendedorDashboard from './components/VendedorDashboard';
-import { ShieldCheck, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 interface Vendedor {
   id: string;
@@ -114,42 +114,29 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Header Corporativo Global */}
-      <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800/60 sticky top-0 z-50 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-tr from-brand-700 to-brand-500 flex items-center justify-center shadow-lg shadow-brand-500/20 flex-shrink-0">
-            <span className="font-extrabold text-white text-base sm:text-lg tracking-wider">NP</span>
+      <header className="border-b border-[#23282B] bg-[#0E1113] py-5 px-4 sm:px-7 sticky top-0 z-50">
+        <div className="max-w-[1160px] mx-auto flex justify-between items-center flex-wrap gap-3">
+          <div className="flex items-baseline gap-2.5">
+            <span className="font-bold text-white text-sm sm:text-base tracking-tight">NovaPay</span>
+            <span className="text-[#4A5256] text-xs">/</span>
+            <span className="text-xs text-slate-400">Controle de Fluxo e Qualidade Comercial</span>
           </div>
-          <div>
-            <h1 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-1.5 sm:gap-2">
-              NovaPay 
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 hidden sm:inline-block">
-                Painel Operacional
-              </span>
-            </h1>
-            <p className="text-[10px] sm:text-xs text-slate-400 font-medium hidden sm:block">Controle de Fluxo e Qualidade Comercial</p>
+          <div className="flex items-center gap-4 text-xs text-slate-400">
+            <span>
+              <b className="text-white font-medium">{profile.nome}</b> · Processos
+            </span>
+            <span className="border border-[#23282B] px-2 py-0.5 text-[9px] text-[#7FA88C] font-bold uppercase tracking-wider">
+              {profile.perfil}
+            </span>
+            <button
+              id="btn-logout"
+              onClick={handleLogout}
+              className="px-2.5 py-1 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-slate-300 hover:text-white transition-all uppercase tracking-wider flex-shrink-0"
+              title="Sair do Sistema"
+            >
+              Sair <LogOut className="w-3 h-3 inline-block ml-0.5" />
+            </button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 sm:gap-4">
-          <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-950/40 border border-slate-800/80">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <div className="text-right">
-              <p className="text-xs font-semibold text-slate-200">{profile.nome}</p>
-              <p className="text-[10px] text-slate-400 capitalize flex items-center justify-end gap-1 font-mono">
-                <ShieldCheck className="w-3 h-3 text-brand-500" />
-                {profile.perfil}
-              </p>
-            </div>
-          </div>
-
-          <button
-            id="btn-logout"
-            onClick={handleLogout}
-            className="p-2 sm:p-2.5 rounded-xl bg-slate-800/80 hover:bg-red-500/10 hover:border-red-500/30 text-slate-400 hover:text-red-400 border border-slate-700/50 transition-all duration-300 flex-shrink-0"
-            title="Sair do Sistema"
-          >
-            <LogOut className="w-4 sm:w-4.5 h-4 sm:h-4.5" />
-          </button>
         </div>
       </header>
 
