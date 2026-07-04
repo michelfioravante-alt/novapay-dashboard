@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  Legend, Cell, PieChart, Pie
+  Cell, PieChart, Pie, ReferenceLine
 } from 'recharts';
 import { 
   Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp
@@ -15,19 +15,30 @@ interface ReadoutCardProps {
   footRight?: string;
   footRightColor?: 'pos' | 'neg' | 'warn';
   hero?: boolean;
+  onClick?: () => void;
+  active?: boolean;
 }
 
-function ReadoutCard({ label, value, foot, footRight, footRightColor, hero }: ReadoutCardProps) {
+function ReadoutCard({ label, value, foot, footRight, footRightColor, hero, onClick, active }: ReadoutCardProps) {
   const rightColor = footRightColor === 'pos' ? 'text-[#7FA88C]' : footRightColor === 'neg' ? 'text-[#B5504B]' : footRightColor === 'warn' ? 'text-[#C9A227]' : 'text-[#7C868A]';
   return (
-    <div className="bg-[#14181A] border-r border-b border-[#23282B] p-[22px] flex flex-col justify-between">
+    <div 
+      onClick={onClick}
+      className={`border-r border-b border-[#23282B] p-[22px] flex flex-col justify-between transition-all select-none ${
+        onClick ? 'cursor-pointer hover:bg-[#1C2022]' : ''
+      } ${
+        active 
+          ? 'bg-[#C9A227]/5 border-b-2 border-b-[#C9A227]/70' 
+          : 'bg-[#14181A]'
+      }`}
+    >
       <div>
-        <p className="text-[11px] font-medium text-[#7C868A] uppercase tracking-[0.06em]">{label}</p>
+        <p className={`text-[11px] font-medium uppercase tracking-[0.06em] transition-colors ${active ? 'text-[#C9A227] font-semibold' : 'text-[#7C868A]'}`}>{label}</p>
         <p className={`font-mono font-bold text-white mt-3 mb-2.5 ${hero ? 'text-[34px]' : 'text-[26px]'}`}>{value}</p>
       </div>
       {(foot || footRight) && (
         <div className="flex items-center justify-between text-[11.5px] text-[#7C868A] pt-3 border-t border-[#1A1F21]">
-          {foot && <span>{foot}</span>}
+          {foot && <span className={active ? 'text-slate-300' : ''}>{foot}</span>}
           {footRight && <span className={`font-mono font-bold ${rightColor}`}>{footRight}</span>}
         </div>
       )}
@@ -83,6 +94,34 @@ export default function GestorDashboard() {
   const [newVendedorEmail, setNewVendedorEmail] = useState('');
   const [submittingVendedor, setSubmittingVendedor] = useState(false);
   const [vendedorModalError, setVendedorModalError] = useState<string | null>(null);
+
+  // Seleção e modal de detalhes do cliente
+  const [selectedClientDetails, setSelectedClientDetails] = useState<any | null>(null);
+
+  // Métrica ativa para o gráfico de acompanhamento comercial
+  const [activeKpiFilter, setActiveKpiFilter] = useState<'receita' | 'ticket' | 'saldo' | 'clientes' | 'roi'>('receita');
+
+  // Manipulador para exibir os detalhes ricos do cliente em um modal
+  const handleShowClientDetails = (clientSummary: any) => {
+    const fullClient = clientes.find(c => c.nome === clientSummary.nome);
+    if (!fullClient) return;
+
+    // Achar vendas dele no período
+    const clientVendas = vendas.filter(v => v.cliente_id === fullClient.id && isInPeriod(v.data_fechamento || v.data_abertura));
+
+    // Achar vendedor responsável
+    const ultimoNegocio = clientVendas[0];
+    const vendedorNome = ultimoNegocio?.vendedores?.nome || 'Não atribuído';
+
+    setSelectedClientDetails({
+      id: fullClient.id,
+      nome: fullClient.nome,
+      segmento: fullClient.segmento,
+      valorTotal: clientSummary.valor,
+      vendedorNome: vendedorNome,
+      propostas: clientVendas
+    });
+  };
 
   // Função para carregar todos os dados do Supabase
   const loadData = useCallback(async () => {
@@ -416,6 +455,7 @@ export default function GestorDashboard() {
   // Agrupa entradas e saídas confirmadas nos últimos 6 meses (Fevereiro a Julho de 2026)
   const mesesHistoricos = ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'];
   const chartHistoricoData = mesesHistoricos.map(m => {
+    // Filtrar transações desse mês
     const transDoMes = transacoes.filter(t => {
       if (!t.data) return false;
       const cleanDate = t.data.split('T')[0];
@@ -423,16 +463,43 @@ export default function GestorDashboard() {
       if (parts.length < 2) return false;
       return `${parts[0]}-${parts[1]}` === m;
     });
+
+    // Filtrar vendas desse mês (respeitando o filtro de vendedor)
+    const vendasDoMes = vendas.filter(v => {
+      const dFechamento = v.data_fechamento || v.data_abertura;
+      if (!dFechamento) return false;
+      return dFechamento.startsWith(m);
+    });
+
+    const vendasDoMesFiltradas = selectedVendedorFilter === 'todos'
+      ? vendasDoMes
+      : vendasDoMes.filter(v => v.vendedor_id === selectedVendedorFilter);
+
+    // Vendas Ganhadas no mês
+    const ganhoVendas = vendasDoMesFiltradas
+      .filter(v => v.status === 'ganho')
+      .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+
+    // Vendas Perdidas no mês
+    const perdidoVendas = vendasDoMesFiltradas
+      .filter(v => v.status === 'perdido')
+      .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+
+    const ganhoVendasCount = vendasDoMesFiltradas.filter(v => v.status === 'ganho').length;
+    const ticketMedioVal = ganhoVendasCount > 0 ? ganhoVendas / ganhoVendasCount : 0;
+
     const ent = selectedVendedorFilter === 'todos'
       ? transDoMes.filter(t => t.tipo === 'entrada' && t.status === 'confirmada').reduce((acc, t) => acc + Number(t.valor), 0)
-      : vendas
-          .filter(v => v.vendedor_id === selectedVendedorFilter && v.status === 'ganho' && (v.data_fechamento || v.data_abertura || '').startsWith(m))
-          .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+      : ganhoVendas;
 
     const sai = selectedVendedorFilter === 'todos'
       ? transDoMes.filter(t => t.tipo === 'saida' && t.status === 'confirmada').reduce((acc, t) => acc + Number(t.valor), 0)
       : 0;
-    
+
+    const saldoVal = ent - sai;
+    const roiVal = sai > 0 ? (saldoVal / sai) * 100 : 0;
+    const novosClientesVal = ganhoVendasCount;
+
     // Traduz o mês para exibição
     const [_, mesNum] = m.split('-');
     const nomesMeses: { [key: string]: string } = {
@@ -442,7 +509,12 @@ export default function GestorDashboard() {
       mesLabel: nomesMeses[mesNum],
       Faturamento: ent,
       Despesas: sai,
-      Lucro: ent - sai
+      Lucro: saldoVal,
+      GanhoVendas: ganhoVendas,
+      PerdidoVendas: perdidoVendas,
+      TicketMedio: ticketMedioVal,
+      ROI: roiVal,
+      NovosClientes: novosClientesVal
     };
   });
 
@@ -822,11 +894,15 @@ export default function GestorDashboard() {
             footRight={pctReceita >= 100 ? '↑ Meta' : `${pctReceita.toFixed(0)}%`}
             footRightColor={pctReceita >= 95 ? 'pos' : pctReceita >= 70 ? 'warn' : 'neg'}
             hero
+            onClick={() => setActiveKpiFilter('receita')}
+            active={activeKpiFilter === 'receita'}
           />
           <ReadoutCard
             label="Ticket Médio"
             value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(ticketMedio)}
             foot="por contrato fechado"
+            onClick={() => setActiveKpiFilter('ticket')}
+            active={activeKpiFilter === 'ticket'}
           />
           <ReadoutCard
             label="Saldo Operacional"
@@ -834,6 +910,8 @@ export default function GestorDashboard() {
             foot={`despesas ${new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(totalSaidas)}`}
             footRight={saldoOperacional >= 0 ? 'positivo' : 'déficit'}
             footRightColor={saldoOperacional >= 0 ? 'pos' : 'neg'}
+            onClick={() => setActiveKpiFilter('saldo')}
+            active={activeKpiFilter === 'saldo'}
           />
           <ReadoutCard
             label="Novos Clientes"
@@ -841,6 +919,8 @@ export default function GestorDashboard() {
             foot={`${pctClientes.toFixed(0)}% da meta`}
             footRight={metaNovosClientes > novosClientesCadastrados ? `faltam ${metaNovosClientes - novosClientesCadastrados}` : 'atingido'}
             footRightColor={pctClientes >= 100 ? 'pos' : 'warn'}
+            onClick={() => setActiveKpiFilter('clientes')}
+            active={activeKpiFilter === 'clientes'}
           />
           <ReadoutCard
             label="ROI da Operação"
@@ -848,6 +928,8 @@ export default function GestorDashboard() {
             foot="retorno por R$ investido"
             footRight={roiOperacao >= 100 ? 'excelente' : roiOperacao >= 0 ? 'positivo' : 'deficitário'}
             footRightColor={roiOperacao >= 100 ? 'pos' : roiOperacao >= 0 ? 'warn' : 'neg'}
+            onClick={() => setActiveKpiFilter('roi')}
+            active={activeKpiFilter === 'roi'}
           />
         </div>
 
@@ -857,43 +939,101 @@ export default function GestorDashboard() {
           <div className="flex-1 h-px bg-[#23282B]"></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-[#23282B] border border-[#23282B]">
-          {/* Gráfico de Evolução 6 Meses */}
+          {/* Gráfico de Evolução 6 Meses (Dinâmico com base no KPI ativo) */}
           <div className="bg-[#14181A] p-6 space-y-3">
             <div>
-              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Fluxo de caixa acumulado</h3>
-              <p className="text-xs text-[#7C868A] mt-1">Últimos 6 meses</p>
-              <div className="flex gap-4 mt-3 text-[11px] text-[#7C868A]">
-                <span className="flex items-center gap-1.5"><span className="inline-block w-[10px] h-[2px] bg-[#D8DEE1]"></span>Faturamento</span>
-                <span className="flex items-center gap-1.5"><span className="inline-block w-[10px] h-[2px] bg-[#5A6266]"></span>Despesas</span>
-              </div>
+              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1] flex items-center gap-2">
+                {activeKpiFilter === 'receita' && "Evolução de Receita & Perdas"}
+                {activeKpiFilter === 'ticket' && "Evolução de Ticket Médio"}
+                {activeKpiFilter === 'saldo' && "Evolução de Saldo Operacional"}
+                {activeKpiFilter === 'clientes' && "Acompanhamento de Novos Clientes"}
+                {activeKpiFilter === 'roi' && "Retorno sobre Investimento (ROI)"}
+                <span className="text-[9px] font-mono text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-1.5 py-0.5 uppercase tracking-wider font-bold">
+                  Histórico
+                </span>
+              </h3>
+              <p className="text-xs text-[#7C868A] mt-1">Comparativo de performance comercial nos últimos 6 meses</p>
             </div>
+            
             <div className="h-72 w-full text-xs">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartHistoricoData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <AreaChart data={chartHistoricoData} margin={{ top: 15, right: 10, left: -10, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorFat" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#7FA88C" stopOpacity={0.2}/>
+                    <linearGradient id="colorGreen" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#7FA88C" stopOpacity={0.25}/>
                       <stop offset="95%" stopColor="#7FA88C" stopOpacity={0}/>
                     </linearGradient>
-                    <linearGradient id="colorDesp" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#B5504B" stopOpacity={0.15}/>
+                    <linearGradient id="colorRed" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#B5504B" stopOpacity={0.2}/>
                       <stop offset="95%" stopColor="#B5504B" stopOpacity={0}/>
                     </linearGradient>
+                    <linearGradient id="colorGold" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#C9A227" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#C9A227" stopOpacity={0}/>
+                    </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#23282B" />
-                  <XAxis dataKey="mesLabel" stroke="#475569" />
-                  <YAxis 
-                    stroke="#475569" 
-                    tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(val)}
-                  />
+                  
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
+                  <XAxis dataKey="mesLabel" stroke="#475569" tickLine={false} />
+                  
+                  {activeKpiFilter === 'roi' ? (
+                    <YAxis stroke="#475569" tickLine={false} tickFormatter={(val) => `${val.toFixed(0)}%`} />
+                  ) : (
+                    <YAxis 
+                      stroke="#475569" 
+                      tickLine={false}
+                      tickFormatter={(val) => {
+                        if (activeKpiFilter === 'clientes') return String(val);
+                        return new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(val);
+                      }}
+                    />
+                  )}
+
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#14181A', borderColor: '#23282B' }} 
-                    itemStyle={{ color: '#cbd5e1' }} 
-                    labelStyle={{ color: '#ffffff' }}
+                    contentStyle={{ backgroundColor: '#0E1113', borderColor: '#23282B', borderRadius: 0 }} 
+                    itemStyle={{ fontSize: 11, fontFamily: 'monospace' }} 
+                    labelStyle={{ fontSize: 10.5, fontWeight: 'bold', color: '#fff', marginBottom: 4 }}
+                    formatter={(value: any, name: any) => {
+                      if (activeKpiFilter === 'roi') return [`${Number(value).toFixed(0)}%`, name];
+                      if (activeKpiFilter === 'clientes') return [value, name];
+                      return [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value), name];
+                    }}
                   />
-                  <Legend verticalAlign="top" height={36} iconType="square" />
-                  <Area type="monotone" dataKey="Faturamento" name="Faturamento (Entradas)" stroke="#7FA88C" strokeWidth={2} fillOpacity={1} fill="url(#colorFat)" />
-                  <Area type="monotone" dataKey="Despesas" name="Despesas (Saídas)" stroke="#B5504B" strokeWidth={1.5} fillOpacity={1} fill="url(#colorDesp)" />
+
+                  {/* Renderização condicional de curvas baseada na métrica selecionada */}
+                  {activeKpiFilter === 'receita' && (
+                    <>
+                      <Area type="monotone" dataKey="Faturamento" name="Faturamento Ganho" stroke="#7FA88C" strokeWidth={2} fillOpacity={1} fill="url(#colorGreen)" />
+                      <Area type="monotone" dataKey="PerdidoVendas" name="Faturamento Perdido" stroke="#B5504B" strokeWidth={1.5} fillOpacity={1} fill="url(#colorRed)" />
+                      {metaReceita > 0 && (
+                        <ReferenceLine y={metaReceita} stroke="#C9A227" strokeDasharray="4 4" label={{ value: 'Meta Receita', fill: '#C9A227', fontSize: 9, position: 'top' }} />
+                      )}
+                    </>
+                  )}
+
+                  {activeKpiFilter === 'ticket' && (
+                    <Area type="monotone" dataKey="TicketMedio" name="Ticket Médio" stroke="#7FA88C" strokeWidth={2} fillOpacity={1} fill="url(#colorGreen)" />
+                  )}
+
+                  {activeKpiFilter === 'saldo' && (
+                    <>
+                      <Area type="monotone" dataKey="Faturamento" name="Receitas" stroke="#7FA88C" strokeWidth={2} fillOpacity={1} fill="url(#colorGreen)" />
+                      <Area type="monotone" dataKey="Despesas" name="Despesas" stroke="#B5504B" strokeWidth={1.5} fillOpacity={1} fill="url(#colorRed)" />
+                    </>
+                  )}
+
+                  {activeKpiFilter === 'clientes' && (
+                    <>
+                      <Area type="monotone" dataKey="NovosClientes" name="Novos Clientes" stroke="#7FA88C" strokeWidth={2} fillOpacity={1} fill="url(#colorGreen)" />
+                      {metaNovosClientes > 0 && (
+                        <ReferenceLine y={metaNovosClientes} stroke="#C9A227" strokeDasharray="4 4" label={{ value: 'Meta Clientes', fill: '#C9A227', fontSize: 9, position: 'top' }} />
+                      )}
+                    </>
+                  )}
+
+                  {activeKpiFilter === 'roi' && (
+                    <Area type="monotone" dataKey="ROI" name="ROI (%)" stroke="#C9A227" strokeWidth={2} fillOpacity={1} fill="url(#colorGold)" />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -971,7 +1111,11 @@ export default function GestorDashboard() {
                   </thead>
                   <tbody>
                     {top5Clientes.map((client, index) => (
-                      <tr key={index} className="border-b border-[#1A1F21]">
+                      <tr 
+                        key={index} 
+                        onClick={() => handleShowClientDetails(client)}
+                        className="border-b border-[#1A1F21] cursor-pointer hover:bg-[#1C2022] transition-colors"
+                      >
                         <td className="py-3.5 pr-4 text-[#D8DEE1] font-medium">{client.nome}</td>
                         <td className="py-3.5 px-4 text-[#4A5256]" style={{ fontSize: '11.5px' }}>{client.segmento}</td>
                         <td className="py-3.5 text-right font-mono" style={{ fontSize: '12.5px' }}>
@@ -1662,6 +1806,82 @@ export default function GestorDashboard() {
                 {submittingVendedor ? 'Sincronizando...' : 'Cadastrar Vendedor'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL DE DETALHES DO CLIENTE
+          ========================================================================= */}
+      {selectedClientDetails && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-[420px] glass-panel border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4 relative">
+            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-mono font-bold text-[#C9A227] uppercase tracking-wider">Detalhamento de Conta</span>
+                <h3 className="text-sm font-bold text-white tracking-tight">{selectedClientDetails.nome}</h3>
+              </div>
+              <button 
+                onClick={() => setSelectedClientDetails(null)} 
+                className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 bg-[#0E1113] p-4 border border-[#23282B]">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400">Segmento comercial:</span>
+                <span className="text-slate-300 font-semibold capitalize">{selectedClientDetails.segmento}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400">Gestor comercial (vendedor):</span>
+                <span className="text-white font-semibold">{selectedClientDetails.vendedorNome}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400">Receita total confirmada:</span>
+                <span className="text-[#7FA88C] font-mono font-bold">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedClientDetails.valorTotal)}
+                </span>
+              </div>
+            </div>
+
+            {/* Histórico de Negociações */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Histórico de Oportunidades ({selectedClientDetails.propostas.length})</p>
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                {selectedClientDetails.propostas.map((prop: any, idx: number) => (
+                  <div key={idx} className="bg-[#0E1113]/60 border border-[#23282B]/60 p-2.5 flex justify-between items-center text-xs">
+                    <div className="flex flex-col">
+                      <span className="text-slate-300 font-semibold">Proposta #{idx + 1}</span>
+                      <span className="text-[10px] text-slate-500">{new Date(prop.data_fechamento || prop.data_abertura).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-white">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(prop.valor_contrato)}
+                      </span>
+                      <span className={`text-[9px] px-1.5 py-0.5 border font-bold uppercase ${
+                        prop.status === 'ganho' ? 'border-[#7FA88C]/20 text-[#7FA88C] bg-[#7FA88C]/5' :
+                        prop.status === 'perdido' ? 'border-[#B5504B]/20 text-[#B5504B] bg-[#B5504B]/5' :
+                        'border-[#C9A227]/20 text-[#C9A227] bg-[#C9A227]/5'
+                      }`}>
+                        {prop.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {selectedClientDetails.propostas.length === 0 && (
+                  <p className="text-[10.5px] text-slate-500 text-center py-4">Nenhuma proposta comercial no período.</p>
+                )}
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setSelectedClientDetails(null)}
+              className="w-full btn-primary py-2.5 text-xs"
+            >
+              Fechar Detalhes
+            </button>
           </div>
         </div>
       )}
