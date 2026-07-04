@@ -5,6 +5,9 @@ import {
   Trash2, RefreshCw, ClipboardList, AlertCircle, MessageSquare,
   Phone, Mail, UserCheck, TrendingUp
 } from 'lucide-react';
+import { 
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend 
+} from 'recharts';
 
 interface Vendedor {
   id: string;
@@ -517,6 +520,44 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     )
   );
 
+  // Agrupamento histórico dos últimos 6 meses para o gráfico Win/Loss
+  const chartData = (() => {
+    const data = [];
+    const monthsNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(1); // Evitar bugs de estouro de dias no setMonth
+      d.setMonth(d.getMonth() - i);
+      
+      const year = d.getFullYear();
+      const monthNum = d.getMonth() + 1;
+      const monthStr = `${year}-${String(monthNum).padStart(2, '0')}`;
+      const label = `${monthsNames[d.getMonth()]}/${String(year).substring(2)}`;
+      
+      // Filtrar vendas desse mês específico
+      const monthSales = sales.filter(v => {
+        const date = v.data_fechamento || v.data_abertura;
+        return date && date.startsWith(monthStr);
+      });
+      
+      const ganho = monthSales
+        .filter(v => v.status === 'ganho')
+        .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+        
+      const perdido = monthSales
+        .filter(v => v.status === 'perdido')
+        .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+        
+      data.push({
+        name: label,
+        'Vendas Ganhas': ganho,
+        'Vendas Perdidas': perdido
+      });
+    }
+    return data;
+  })();
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-12">
@@ -673,6 +714,75 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
               )
             }</span></span>
           </div>
+        </div>
+      </div>
+
+      {/* Gráfico Histórico de Vendas Ganhas vs Perdidas */}
+      <div className={`bg-[#14181A] border border-[#23282B] p-6 space-y-4 ${
+        activeDesktopTab === 'negociacoes' ? (mobileTab === 'dashboard' ? 'block' : 'hidden md:block') : 'hidden'
+      }`}>
+        <div className="flex justify-between items-center border-b border-[#23282B]/60 pb-3 flex-wrap gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5 font-sans">
+              <TrendingUp className="w-4 h-4 text-brand-400" /> Histórico de Performance Comercial (Win vs Loss)
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5 font-sans">Acompanhamento de volume ganho comparado a perdas nos últimos 6 meses</p>
+          </div>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-[#0E1113] border border-[#23282B] px-2.5 py-1 font-mono">
+            Últimos 6 meses
+          </span>
+        </div>
+
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                stroke="#4A5256" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false} 
+                className="font-mono"
+              />
+              <YAxis 
+                stroke="#4A5256" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false}
+                className="font-mono"
+                tickFormatter={(value) => 
+                  new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+                }
+              />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#0E1113', borderColor: '#23282B', borderRadius: 0 }}
+                itemStyle={{ fontSize: 11, fontFamily: 'monospace' }}
+                labelStyle={{ fontSize: 10, fontWeight: 'bold', color: '#fff', marginBottom: 4 }}
+                formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value)), '']}
+              />
+              <Legend 
+                iconSize={8}
+                iconType="circle"
+                wrapperStyle={{ fontSize: 10, paddingTop: 10 }}
+              />
+              <Bar 
+                dataKey="Vendas Ganhas" 
+                fill="#7FA88C" 
+                radius={[2, 2, 0, 0]} 
+                maxBarSize={45}
+              />
+              <Bar 
+                dataKey="Vendas Perdidas" 
+                fill="#B5504B" 
+                radius={[2, 2, 0, 0]} 
+                maxBarSize={45}
+              />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
