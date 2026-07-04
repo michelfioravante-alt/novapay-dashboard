@@ -1009,9 +1009,14 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                 </h4>
                 <p className="text-[10px] text-slate-500 mt-0.5">Visão de faturamento ganho comparado a perdas e linha de meta nos últimos 6 meses</p>
               </div>
-              <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest bg-[#14181A] border border-[#23282B] px-2 py-0.5">
-                Histórico
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/15 px-2.5 py-1 font-mono">
+                  Meta Mensal: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metaIndividual)}
+                </span>
+                <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest bg-[#14181A] border border-[#23282B] px-2.5 py-1">
+                  Últimos 6 meses
+                </span>
+              </div>
             </div>
 
             <div className="h-56 w-full text-xs">
@@ -1050,7 +1055,17 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                     labelStyle={{ fontSize: 10, fontWeight: 'bold', color: '#ffffff', marginBottom: 4 }}
                     formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value)), '']}
                   />
-                  <Legend verticalAlign="top" height={32} iconType="square" wrapperStyle={{ fontSize: 10 }} />
+                  <Legend 
+                    verticalAlign="top" 
+                    height={32} 
+                    iconType="square" 
+                    wrapperStyle={{ fontSize: 10 }} 
+                    payload={[
+                      { value: 'Faturamento (Ganho)', type: 'rect', id: 'ganho', color: '#7FA88C' },
+                      { value: 'Perdas (Perdido)', type: 'rect', id: 'perdido', color: '#B5504B' },
+                      { value: `Meta Mensal (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(metaIndividual)})`, type: 'line', id: 'meta', color: '#C9A227' }
+                    ]}
+                  />
                   
                   {/* Linha Horizontal de Meta Mensal */}
                   <ReferenceLine 
