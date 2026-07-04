@@ -1,112 +1,191 @@
-# NovaPay — Painel de Controle Operacional (PDCA / Lean)
+﻿# NovaPay — Painel de Performance Comercial
 
-Este repositório contém a entrega do teste técnico para a vaga de **No-Code Developer** na **IAplicada**. A solução proposta simula o painel operacional da "NovaPay", uma fintech focada no processamento de pagamentos para pequenos negócios.
-
-Para destacar este projeto frente aos concorrentes, a arquitetura e as telas foram desenhadas com um **forte viés de Engenharia de Processos**, incorporando os conceitos de **PDCA (Plan-Do-Check-Act)**, **Métricas Lean (Lead Time comercial)**, **Gestão Visual (Andon)** e **Melhoria Contínua (Kaizen)**.
+> Painel de gestão financeira e comercial para a empresa fictícia NovaPay, desenvolvido como teste técnico para a vaga de Desenvolvedor(a) No-Code na IAplicada.
 
 ---
 
-## 🚀 Links do Projeto
+## 🔗 Links
 
-- **Frontend Publicado (Deploy):** [novapay-dashboard.vercel.app](https://novapay-dashboard.vercel.app)
-- **Credenciais de Teste (Prontas para Uso):**
-  - **Perfil Gestor (Acesso Total + PDCA):** 
-    - **E-mail:** `gestor@novapay.com`
-    - **Senha:** `Senha123!`
-  - **Perfil Vendedor (Acesso Restrito + RLS):**
-    - **E-mail:** `vendedor@novapay.com`
-    - **Senha:** `Senha123!`
-
-*Nota de Robustez:* A tela de login possui um sistema inteligente de **Auto-Healing UX**. Se por algum motivo as contas de teste forem apagadas do Supabase Auth, o próprio frontend criará os usuários e perfis silenciosamente na primeira tentativa de login (ou ao clicar nos botões de acesso rápido), garantindo que o avaliador consiga acessar o sistema sem falhas.
+| | Link |
+|--|--|
+| **Deploy (Produção)** | *(link Vercel — adicionar antes de enviar)* |
+| **Repositório** | https://github.com/michelfioravante-alt/novapay-dashboard |
 
 ---
 
-## 🛠️ Stack Utilizada & Justificativas
+## 🔑 Credenciais de Teste
 
-1. **Frontend: React (v18) + TypeScript + Vite**
-   - *Por que Escolheu:* O briefing sugeria o uso de "Lovable". Por baixo dos panos, o Lovable gera código limpo em React, TypeScript e Tailwind. Para garantir o máximo controle de design, segurança e modularidade sem dependências pesadas, estruturamos o projeto exatamente com essa stack nativa. O Vite proporciona um build ultrarrápido (performance).
-2. **Backend & Banco de Dados: Supabase (PostgreSQL)**
-   - *Por que Escolheu:* Integração nativa com segurança a nível de linha (RLS), o que resolveu o requisito crítico de privacidade comercial diretamente na infraestrutura do banco.
-3. **Automação: n8n**
-   - *Por que Escolheu:* Uma ferramenta de integração (iPaaS) extremamente visual e eficiente. O JSON do workflow está exportado neste repositório.
-4. **Estilização: TailwindCSS**
-   - *Por que Escolheu:* Permite criar um design profissional premium, limpo, responsivo e altamente customizado de forma ágil, aplicando a paleta de cores corporativa da NovaPay.
+| Perfil | E-mail | Senha |
+|--------|--------|-------|
+| **Gestor** | `gestor@novapay.com` | `novapay2026` |
+| **Vendedor (Carlos)** | `vendedor@novapay.com` | `novapay2026` |
+| **Vendedor (Mariana)** | `vendedor2@novapay.com` | `novapay2026` |
 
----
-
-## 📐 Modelagem de Dados & RLS (Segurança)
-
-O script SQL completo está disponível em [`supabase/schema.sql`](file:///supabase/schema.sql).
-
-### Tabelas Criadas:
-- `vendedores` (id, nome, email, perfil: gestor/vendedor)
-- `clientes` (id, nome, segmento, status, data_cadastro)
-- `transacoes` (id, cliente_id, valor, tipo: entrada/saida, categoria, data, status)
-- `metas` (id, mes_referencia, meta_receita, meta_novos_clientes)
-- `vendas` (id, vendedor_id, cliente_id, valor_contrato, data_abertura, data_fechamento, status, motivo_perda)
-- `alertas_andon` (id, data, mensagem, resolvido, tipo) — *Tabela auxiliar de processos*
-- `pdca_acoes` (id, venda_id, descricao, responsavel, prazo, causa_raiz, status) — *Tabela de planos de ação*
-
-### Mecanismos Avançados no Banco:
-- **Segurança RLS (Row Level Security):** 
-  Implementamos políticas finas para que cada vendedor acesse **somente** suas respectivas vendas, enquanto gestores ignoram o filtro e visualizam todo o faturamento da empresa.
-- **Trigger Automatizado (`trg_on_sale_won`):** 
-  Sempre que uma venda comercial é marcada como **"Ganho"** (seja inserida ou atualizada), o banco dispara automaticamente uma função (`handle_sale_won`) que:
-  1. Cria um registro de entrada financeira (`entrada`) na tabela de transações com o valor exato do contrato comercial.
-  2. Altera a situação do cliente para `'ativo'`.
-  Isso garante **integridade absoluta dos dados** sem necessidade de redundância de código no frontend.
+> O gestor visualiza todos os dados. Cada vendedor visualiza apenas suas próprias vendas (RLS ativo).
 
 ---
 
-## 📈 Estrutura de Business Review (MBR/QBR) & Gestão Comercial (RevOps)
+## 📋 Descrição do Projeto
 
-O painel foi estruturado e refinado para refletir o dialeto comercial padrão do mercado (Quarterly/Monthly Business Review), mantendo o rigor do controle de processos lean subjacente:
+O NovaPay Dashboard é um painel de controle em tempo real para equipes comerciais. Ele oferece:
 
-### 1. Metas do Período (Antigo PLAN)
-- **Metas do Período:** O painel do gestor e do vendedor exibem os objetivos de faturamento e aquisição de clientes estabelecidos para o mês selecionado. O gestor pode atualizar as metas dinamicamente através do formulário administrativo.
-- **Cadastro de Vendedores:** O gestor pode cadastrar novos vendedores diretamente pelo painel.
+- **Visão do Gestor**: KPIs financeiros, histórico de 6 meses, ranking de vendedores, pipeline de vendas, top clientes, análise de perdas e ROI da operação.
+- **Visão do Vendedor**: negociações em Kanban ou lista, meta individual, comissão estimada, playbook por oportunidade e simulador de projeção.
 
-### 2. Resultados & Diagnóstico (Antigo DO & CHECK)
-- **Painel Financeiro & Comercial:** O faturamento, despesas operacionais, ticket médio, novos clientes e conversão de vendas são plotados dinamicamente com gráficos interativos em **Recharts**.
-- **Acompanhamento Individual:** O gestor pode utilizar o filtro de vendedor para monitorar o trabalho específico de cada profissional (ex: Mariana Silva).
-- **Métrica Lean de Lead Time:** O dashboard calcula e exibe o tempo médio de ciclo (dias decorridos entre a abertura e o fechamento do negócio), focando na eficiência e otimização do fluxo comercial.
-- **Visual Management (Andon) & Sincronização em Tempo Real:** Um indicador de status em semáforo (Verde, Amarelo, Vermelho) sinaliza a estabilidade financeira com base no atingimento da meta daquele período. Todas as alterações e novas oportunidades criadas pelo vendedor atualizam a tela do gestor de forma reativa e instantânea via Supabase Realtime.
-- **Standard Work comercial:** O painel do vendedor conta com uma checklist diária de processos padrão que ajuda a evitar desvios no fluxo de trabalho.
-
-### 3. Painel de Negociações & CRM
-- **Quadro Kanban Interativo (CRM):** Substitui ou complementa a listagem de propostas do vendedor por um quadro visual Kanban (drag-and-drop) para os estágios abertos (*Em Negociação*, *Ganho*, *Perdido*), facilitando a rotina de follow-up do vendedor e salvando as posições/status direto no banco de dados.
+Todos os dados são carregados em tempo real via Supabase Realtime. Alterações de status de negócios disparam automaticamente transações financeiras via trigger PostgreSQL.
 
 ---
 
-## 🤖 Automação n8n
+## 🛠️ Stack Utilizada e Justificativa
 
-O workflow de automação está exportado em [`automation/n8n_workflow.json`](file:///automation/n8n_workflow.json).
+| Ferramenta | Papel | Por que escolhi |
+|------------|-------|-----------------|
+| **React + Vite + TypeScript** | Frontend | Controle total sobre o código, tipagem forte, performance superior a plataformas no-code para dashboards com múltiplos gráficos e interações complexas |
+| **Tailwind CSS** | Estilização | Utility-first acelera a construção de interfaces consistentes sem CSS customizado |
+| **Recharts** | Gráficos | Biblioteca React-nativa, declarativa, fácil de integrar com dados do Supabase em tempo real |
+| **Supabase** | Backend / Banco / Auth | Postgres + RLS + Auth + Realtime em uma única plataforma gerenciada |
+| **Supabase RLS** | Segurança de dados | Row Level Security nativa do PostgreSQL — vendedor só lê seus dados sem lógica no frontend |
+| **n8n** | Automação de alertas | Workflow visual, self-hostable, integra nativamente com Supabase via HTTP/Webhook; JSON exportável |
+| **GitHub** | Versionamento | Padrão de mercado, integração nativa com Vercel para deploy contínuo |
+| **Vercel** | Deploy | Zero-config para apps Vite/React, preview por branch, CDN global |
 
-### Funcionamento do Fluxo:
-```mermaid
-graph TD
-    A[Schedule Trigger: Diário às 08h] --> B[HTTP Request: Consulta Faturamento e Meta no Supabase]
-    B --> C[Code Node: Verifica dias restantes e desvio de meta]
-    C --> D{Restam <= 10 dias e faturamento < 70% da meta?}
-    D -- Sim --> E[HTTP Request: Insere Alerta Andon na tabela do Supabase]
-    E --> F[HTTP Request: Dispara Webhook de Alerta Discord/Slack]
-    D -- Não --> G[Fim: Fluxo de Faturamento Conforme]
+---
+
+## 🗄️ Modelagem de Dados
+
+```
+clientes        → id, nome, segmento, data_cadastro, status (ativo/inativo)
+transacoes      → id, cliente_id, valor, tipo, categoria, data, status
+metas           → id, mes_referencia, meta_receita, meta_novos_clientes
+vendedores      → id, nome, email, perfil (gestor/vendedor)
+vendas          → id, vendedor_id, cliente_id, valor_contrato, data_abertura,
+                  data_fechamento, status, motivo_perda
+alertas_andon   → alertas de processo internos do gestor
+alertas_meta    → log de alertas de receita disparados pela automação
+pdca_acoes      → ações 5W2H do gestor
+tarefas_vendedor→ checklist de atividades do vendedor
+```
+
+### RLS (Row Level Security)
+
+- **Vendedor**: SELECT em `vendas` apenas onde `vendedor_id = auth.uid()`
+- **Gestor**: acesso total a todas as tabelas via policy com `perfil = 'gestor'`
+
+### Triggers e Functions
+
+| Nome | Tipo | O que faz |
+|------|------|-----------|
+| `trg_on_sale_won` | Trigger AFTER INSERT/UPDATE em `vendas` | Quando status muda para `ganho`: cria transação de `entrada` em `transacoes` e atualiza o cliente para `status = ativo` |
+| `verificar_meta_mensal()` | Function PL/pgSQL | Chamada diariamente pela automação: verifica se receita < 70% da meta com ≤ 10 dias restantes e registra log em `alertas_meta` |
+
+---
+
+## ⚙️ Automação — Workflow de Alerta de Meta
+
+**Arquivo:** [`n8n-workflow-alerta-meta.json`](./n8n-workflow-alerta-meta.json)
+
+### O que o workflow faz
+
+```
+[Cron: todo dia 9h]
+    → [HTTP POST] Chama verificar_meta_mensal() no Supabase RPC
+    → [IF] alerta_disparado == true?
+        → SIM: [HTTP POST] Envia webhook de notificação
+        → NÃO: [NoOp] Registra execução sem alerta
+```
+
+### Lógica de negócio
+
+- Roda **todo dia às 9h** via Cron
+- Calcula dias restantes no mês atual
+- Se `dias_restantes ≤ 10` **E** `receita < 70% da meta` → dispara alerta
+- O alerta é registrado em `public.alertas_meta` para auditoria e exibição no painel
+
+### Como configurar em produção
+
+1. Instalar n8n via Docker: `docker run -d -p 5678:5678 n8nio/n8n`
+2. Importar `n8n-workflow-alerta-meta.json` pela UI do n8n
+3. Configurar credencial **Supabase API** com a service role key do projeto
+4. Configurar destino do alerta (Slack webhook, SMTP, ou outra integração)
+5. Ativar o workflow
+
+---
+
+## 🧩 Decisões Técnicas e Trade-offs
+
+### Por que React ao invés de Lovable/Bubble?
+
+A stack recomendada menciona Lovable, mas o briefing avalia **qualidade de entrega independente da ferramenta**. Para um dashboard com múltiplos gráficos interativos, filtros cruzados, modais e dados em tempo real, o controle total do React permitiu otimizações impossíveis em ferramentas no-code (ex: memoização de cálculos históricos, gráficos reativos por KPI clicado).
+
+### Por que TypeScript?
+
+Tipagem estrita previne bugs em runtime em componentes com props complexas. O compilador força tratar `null`/`undefined` explicitamente — crítico em dashboards financeiros onde um cálculo errado afeta a tomada de decisão.
+
+### Trade-off: Complexidade vs. Velocidade
+
+Optei por uma interface mais rica do que o mínimo pedido. Isso custou mais tempo de desenvolvimento mas resulta em uma entrega que parece produto real, não protótipo — diretamente alinhado ao critério de UI/UX (25% do peso).
+
+### Trade-off: Realtime vs. Polling
+
+Uso de `supabase.channel()` ao invés de `setInterval`. Realtime é mais eficiente e elimina requisições desnecessárias ao banco.
+
+---
+
+## 🚀 Como Rodar Localmente
+
+```bash
+git clone https://github.com/michelfioravante-alt/novapay-dashboard.git
+cd novapay-dashboard
+npm install
+
+# Criar arquivo de variáveis de ambiente
+cp .env.example .env
+# Preencher VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY
+
+npm run dev
+# Acesse: http://localhost:5173
 ```
 
 ---
 
-## 🛠️ Decisões Técnicas & Trade-Offs
+## 📸 Funcionalidades Implementadas
 
-- **Bypass do Mock local:** Inicialmente consideramos utilizar uma base mockada em memória (localStorage) para acelerar a entrega do deploy. Porém, visando a melhor nota nos critérios de avaliação (Banco de Dados 20% e RLS), optamos por criar e hospedar um banco real do Supabase e ligar o frontend de produção a ele.
-- **Estratégia de RLS no Frontend:** Como vendedores usam uma conta de login comum (mas com RLS ativo no Supabase), estruturamos as requisições utilizando os mecanismos nativos do Supabase Client. Caso um vendedor tente requistar dados gerais de vendas, o Supabase retorna um array vazio por design (nível de banco de dados), blindando a aplicação contra brechas de API.
-- **Acoplamento Trigger-Financeiro:** A decisão de criar transações via trigger (banco) em vez de chamadas de API (frontend) garante que a integridade financeira nunca seja quebrada por falhas na conexão do navegador ou recarregamento de página.
+### Painel do Gestor
+- 5 KPIs clicáveis (Receita, Ticket, Saldo, Clientes, ROI) que alteram o gráfico histórico
+- Gráfico de 6 meses reativo por métrica selecionada com linha de meta
+- Ranking de vendedores com ganhos vs. perdas e taxa de conversão
+- Top 5 clientes clicáveis com modal de detalhes e histórico de propostas
+- Filtro por período (mensal / 2º trimestre) e por vendedor
+- Análise de motivos de perda com recomendações estratégicas
+- Cadastro de vendedores e edição de metas pelo gestor
+
+### Painel do Vendedor
+- Kanban drag-and-drop e modo lista com legenda dinâmica
+- Meta individual com barra de progresso e projeção do mês
+- Simulador de comissão interativo
+- Playbook dinâmico por tipo de negociação
+- Checklist de atividades diárias
+
+### Extras além do escopo pedido
+- ROI da Operação como KPI adicional
+- Sistema de alertas internos (Andon) para o gestor
+- Logo NovaPay clicável reseta o dashboard ao estado inicial
+- Dados em tempo real via Supabase Realtime channels
+- Dark mode nativo com paleta de cores premium
+- Workflow de automação com function SQL e JSON n8n documentado
 
 ---
 
-## 🔮 O que Faria Diferente com Mais Tempo
+## 🔄 O que Faria Diferente com Mais Tempo
 
-1. **Testes Unitários e de Integração:** Desenvolveria suites de testes usando Jest e Testing Library para validar o roteamento e a simulação de RLS.
-2. **Dashboard n8n Executável:** Disponibilizaria o n8n hospedado na nuvem (em vez do arquivo exportado) com integrações com serviços reais de e-mail (SendGrid) e WhatsApp API para demonstrar a notificação funcionando ao vivo.
-3. **Pipeline de CI/CD Completo:** Configuração de GitHub Actions para rodar testes automatizados e linters a cada Pull Request, garantindo que o deploy na Vercel só ocorra após a validação completa da qualidade do código.
-4. **Múltiplos Estágios de Pipeline no Banco:** Desmembraria o status genérico de `'em_negociacao'` em fases granulares no Postgres (`prospecção`, `diagnóstico`, `proposta` e `ajustes finais`), otimizando o mapeamento real do funil e cruzando taxas de drop-off por etapa.
-5. **Autenticação Real de Vendedores (Sign-Up / Roles):** Fazer o login real de cada vendedor atrelado diretamente à sua respectiva conta de autenticação no Supabase.
+1. **Testes automatizados** — Jest + Testing Library para os cálculos de KPIs
+2. **Export PDF/CSV** — relatórios mensais exportáveis diretamente do painel
+3. **CI/CD completo** — GitHub Actions com lint, test e deploy automático na main
+4. **Notificações push** — Web Push API para alertas de meta no browser
+5. **Metas granulares** — metas individuais por vendedor, por segmento e por produto
+6. **PWA** — Progressive Web App com uso offline para o vendedor em campo
+7. **n8n em produção** — deploy no Railway.app com webhook real para Slack/Teams
+
+---
+
+*Desenvolvido com assistência de IA (Claude) como ferramenta de produtividade — conforme as regras do teste.*
