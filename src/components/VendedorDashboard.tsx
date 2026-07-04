@@ -90,6 +90,24 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
 
   useEffect(() => {
     loadData();
+
+    // Inscrição em tempo real para sincronização automática entre vendedor e gestor
+    const channel = supabase
+      .channel('vendedor-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transacoes' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadData]);
 
   const handleRefresh = () => {
@@ -149,22 +167,25 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             vendedor_id: vendedor.id,
             cliente_id: clientId,
             valor_contrato: parseFloat(contractValue),
-            status: status,
             data_abertura: openingDate,
-            data_fechamento: status !== 'em_negociacao' ? openingDate : null
+            status: status,
+            data_fechamento: status !== 'em_negociacao' ? new Date().toISOString().split('T')[0] : null
           }
         ]);
 
       if (error) throw error;
 
-      setIsAddModalOpen(false);
+      // Limpar formulário e fechar modal
       setClientId('');
       setContractValue('');
       setStatus('em_negociacao');
+      setOpeningDate(new Date().toISOString().split('T')[0]);
+      setIsAddModalOpen(false);
+
       loadData();
     } catch (error: any) {
       console.error('Erro ao registrar venda:', error);
-      setFormError(error.message || 'Erro ao registrar negociação comercial.');
+      setFormError(error.message || 'Erro ao registrar a oportunidade comercial.');
     } finally {
       setSubmittingSale(false);
     }

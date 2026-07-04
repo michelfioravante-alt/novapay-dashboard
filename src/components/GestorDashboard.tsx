@@ -63,75 +63,68 @@ export default function GestorDashboard() {
   const [vendas, setVendas] = useState<any[]>([]);
   const [transacoes, setTransacoes] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
+  const [vendedores, setVendedores] = useState<any[]>([]);
+  const [metas, setMetas] = useState<any[]>([]);
   const [alertas, setAlertas] = useState<any[]>([]);
   const [acoes, setAcoes] = useState<any[]>([]);
-  const [metas, setMetas] = useState<any[]>([]);
 
-  // Estados dos Formulários Kaizen
-  const [selectedVendaPerdida, setSelectedVendaPerdida] = useState('');
-  const [whys, setWhys] = useState(['', '', '', '', '']); // 5 Níveis de Causa Raiz
+  // Formulário 5 Porquês
+  const [selectedVendaPerdida, setSelectedVendaPerdida] = useState<string>('');
+  const [whys, setWhys] = useState<string[]>(['', '', '', '', '']);
   const [actionDesc, setActionDesc] = useState('');
   const [actionResponsavel, setActionResponsavel] = useState('');
   const [actionPrazo, setActionPrazo] = useState('');
   const [submittingKaizen, setSubmittingKaizen] = useState(false);
 
-  // Estados de Cadastro Rápido de Ação Avulsa (5W2H)
+  // Formulário Ação Avulsa 5W2H
   const [newActionWhat, setNewActionWhat] = useState('');
-  const [newActionWhy, setNewActionWhy] = useState('');
   const [newActionWho, setNewActionWho] = useState('');
   const [newActionWhen, setNewActionWhen] = useState('');
+  const [newActionWhy, setNewActionWhy] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
 
+  // Filtro de Vendedor
+  const [selectedVendedorFilter, setSelectedVendedorFilter] = useState<string>('todos');
+
+  // Modal e Formulário de Cadastro de Novo Vendedor
+  const [isVendedorModalOpen, setIsVendedorModalOpen] = useState(false);
+  const [newVendedorNome, setNewVendedorNome] = useState('');
+  const [newVendedorEmail, setNewVendedorEmail] = useState('');
+  const [submittingVendedor, setSubmittingVendedor] = useState(false);
+  const [vendedorModalError, setVendedorModalError] = useState<string | null>(null);
+
+  // Função para carregar todos os dados do Supabase
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // 1. Carregar vendas
-      const { data: salesData, error: salesError } = await supabase
-        .from('vendas')
-        .select('*, clientes(nome, segmento), vendedores(nome)');
-      if (salesError) throw salesError;
-      setVendas(salesData || []);
+      const [
+        { data: resVendas },
+        { data: resTransacoes },
+        { data: resClientes },
+        { data: resVendedores },
+        { data: resMetas },
+        { data: resAlertas },
+        { data: resAcoes }
+      ] = await Promise.all([
+        supabase.from('vendas').select('*, vendedores(nome), clientes(nome)'),
+        supabase.from('transacoes').select('*, clientes(nome)'),
+        supabase.from('clientes').select('*'),
+        supabase.from('vendedores').select('*'),
+        supabase.from('metas').select('*'),
+        supabase.from('alertas_andon').select('*').order('data', { ascending: false }),
+        supabase.from('pdca_acoes').select('*').order('created_at', { ascending: false })
+      ]);
 
-      // 2. Carregar transações (Fluxo de Caixa)
-      const { data: transData, error: transError } = await supabase
-        .from('transacoes')
-        .select('*');
-      if (transError) throw transError;
-      setTransacoes(transData || []);
-
-      // 3. Carregar clientes
-      const { data: clientsData, error: clientsError } = await supabase
-        .from('clientes')
-        .select('*');
-      if (clientsError) throw clientsError;
-      setClientes(clientsData || []);
-
-      // 4. Carregar alertas Andon
-      const { data: alertsData, error: alertsError } = await supabase
-        .from('alertas_andon')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (alertsError) throw alertsError;
-      setAlertas(alertsData || []);
-
-      // 5. Carregar Ações PDCA
-      const { data: actionsData, error: actionsError } = await supabase
-        .from('pdca_acoes')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (actionsError) throw actionsError;
-      setAcoes(actionsData || []);
-
-      // 6. Carregar metas corporativas
-      const { data: goalsData, error: goalsError } = await supabase
-        .from('metas')
-        .select('*');
-      if (goalsError) throw goalsError;
-      setMetas(goalsData || []);
-
-    } catch (err: any) {
-      console.error('Erro ao carregar dados organizacionais:', err);
+      setVendas(resVendas || []);
+      setTransacoes(resTransacoes || []);
+      setClientes(resClientes || []);
+      setVendedores(resVendedores || []);
+      setMetas(resMetas || []);
+      setAlertas(resAlertas || []);
+      setAcoes(resAcoes || []);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -140,11 +133,327 @@ export default function GestorDashboard() {
 
   useEffect(() => {
     loadData();
+
+    // Inscrição em tempo real para sincronização automática entre vendedor e gestor
+    const channel = supabase
+      .channel('gestor-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transacoes' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pdca_acoes' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'metas' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendedores' }, () => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadData]);
 
+  // Handler de atualização manual
   const handleRefresh = () => {
     setRefreshing(true);
     loadData();
+  };
+
+  // Cadastrar Novo Vendedor
+  const handleVendedorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVendedorNome || !newVendedorEmail) return;
+
+    setSubmittingVendedor(true);
+    setVendedorModalError(null);
+
+    try {
+      const { error } = await supabase
+        .from('vendedores')
+        .insert([
+          {
+            nome: newVendedorNome,
+            email: newVendedorEmail.toLowerCase().trim(),
+            perfil: 'vendedor'
+          }
+        ]);
+
+      if (error) throw error;
+
+      setIsVendedorModalOpen(false);
+      setNewVendedorNome('');
+      setNewVendedorEmail('');
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      setVendedorModalError(err.message || 'Erro ao cadastrar vendedor.');
+    } finally {
+      setSubmittingVendedor(false);
+    }
+  };
+
+  // =========================================================================
+  // PROCESSAMENTO DE INDICADORES COM FILTRO DE PERÍODO (MONTH / QUARTER)
+  // =========================================================================
+
+  // Função utilitária para verificar se a data está no período selecionado
+  const isInPeriod = useCallback((dateStr: string) => {
+    if (!dateStr) return false;
+    const cleanDate = dateStr.split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length < 2) return false;
+    const year = parts[0];
+    const month = parts[1];
+    
+    if (period === 'Q2-2026') {
+      // Q2 = Abril, Maio, Junho
+      return year === '2026' && ['04', '05', '06'].includes(month);
+    } else {
+      // Formato YYYY-MM
+      return `${year}-${month}` === period;
+    }
+  }, [period]);
+
+  // 1. Filtragem das Metas do Período
+  const activeGoals = metas.filter(m => {
+    if (!m.mes_referencia) return false;
+    const cleanDate = m.mes_referencia.split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length < 2) return false;
+    const year = parts[0];
+    const month = parts[1];
+    if (period === 'Q2-2026') {
+      return year === '2026' && ['04', '05', '06'].includes(month);
+    }
+    return `${year}-${month}` === period;
+  });
+
+  const metaReceitaTotal = activeGoals.reduce((acc, m) => acc + Number(m.meta_receita), 0);
+  const metaNovosClientesTotal = activeGoals.reduce((acc, m) => acc + m.meta_novos_clientes, 0);
+
+  // 2. Filtragem de Vendas no período (filtrando por vendedor se selecionado)
+  const baseFilteredVendas = vendas.filter(v => isInPeriod(v.data_fechamento || v.data_abertura));
+  const filteredVendas = selectedVendedorFilter === 'todos'
+    ? baseFilteredVendas
+    : baseFilteredVendas.filter(v => v.vendedor_id === selectedVendedorFilter);
+
+  const wonVendas = filteredVendas.filter(v => v.status === 'ganho');
+  const lostVendas = filteredVendas.filter(v => v.status === 'perdido');
+
+  // 3. Filtragem de Transações no período
+  const filteredTransacoes = transacoes.filter(t => isInPeriod(t.data));
+  
+  // Receita Realizada (se filtrado por vendedor, calculamos pelas vendas dele; senão, por transações de entrada)
+  const totalEntradas = selectedVendedorFilter === 'todos'
+    ? filteredTransacoes
+        .filter(t => t.tipo === 'entrada' && t.status === 'confirmada')
+        .reduce((acc, t) => acc + Number(t.valor), 0)
+    : wonVendas.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+
+  // Despesas (saídas são corporativas, então se filtrado por vendedor definimos como 0 para não distorcer)
+  const totalSaidas = selectedVendedorFilter === 'todos'
+    ? filteredTransacoes
+        .filter(t => t.tipo === 'saida' && t.status === 'confirmada')
+        .reduce((acc, t) => acc + Number(t.valor), 0)
+    : 0;
+
+  // 4. Saldo Operacional e Ticket Médio
+  const saldoOperacional = totalEntradas - totalSaidas;
+  const ticketMedio = wonVendas.length > 0 ? (totalEntradas / wonVendas.length) : 0;
+
+  // 5. Clientes cadastrados no período (Novos Clientes)
+  const baseNovosClientes = clientes.filter(c => isInPeriod(c.data_cadastro));
+  const novosClientesCadastrados = selectedVendedorFilter === 'todos'
+    ? baseNovosClientes.length
+    : baseNovosClientes.filter(c => 
+        vendas.some(v => v.cliente_id === c.id && v.vendedor_id === selectedVendedorFilter)
+      ).length;
+
+  // 6. Taxa de Conversão do Funil Comercial
+  const totalOportunidades = filteredVendas.length;
+  const conversionRate = totalOportunidades > 0 ? (wonVendas.length / totalOportunidades) * 100 : 0;
+
+  // 7. Métrica Lean: Lead Time Comercial Médio (Tempo de fechamento em dias)
+  const closedVendas = filteredVendas.filter(v => v.data_fechamento && (v.status === 'ganho' || v.status === 'perdido'));
+  const leadTimeMedio = closedVendas.length > 0 
+    ? closedVendas.reduce((acc, v) => {
+        const start = new Date(v.data_abertura).getTime();
+        const end = new Date(v.data_fechamento).getTime();
+        const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        return acc + diffDays;
+      }, 0) / closedVendas.length
+    : 0;
+
+  // 8. Ranking de Vendedores (Por valor fechado)
+  const rankingVendedores = vendedores.map(vend => {
+    const totalFechado = vendas
+      .filter(v => v.vendedor_id === vend.id && v.status === 'ganho' && isInPeriod(v.data_fechamento))
+      .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+    return {
+      nome: vend.nome,
+      valor: totalFechado
+    };
+  }).sort((a, b) => b.valor - a.valor);
+
+  // 9. Top 5 Clientes por Faturamento no período
+  const clientBillingMap: { [key: string]: { nome: string; valor: number; segmento: string } } = {};
+  if (selectedVendedorFilter === 'todos') {
+    filteredTransacoes
+      .filter(t => t.tipo === 'entrada' && t.status === 'confirmada' && t.cliente_id)
+      .forEach(t => {
+        const cid = t.cliente_id;
+        const val = Number(t.valor);
+        const cname = t.clientes?.nome || 'Cliente Desconhecido';
+        const cseg = t.clientes?.segmento || 'Não especificado';
+        if (!clientBillingMap[cid]) {
+          clientBillingMap[cid] = { nome: cname, valor: 0, segmento: cseg };
+        }
+        clientBillingMap[cid].valor += val;
+      });
+  } else {
+    wonVendas.forEach(v => {
+      const cid = v.cliente_id;
+      const val = Number(v.valor_contrato);
+      const cname = v.clientes?.nome || 'Cliente Desconhecido';
+      const cseg = v.clientes?.segmento || 'Não especificado';
+      if (!clientBillingMap[cid]) {
+        clientBillingMap[cid] = { nome: cname, valor: 0, segmento: cseg };
+      }
+      clientBillingMap[cid].valor += val;
+    });
+  }
+  const top5Clientes = Object.values(clientBillingMap)
+    .sort((a, b) => b.valor - a.valor)
+    .slice(0, 5);
+
+  // 10. Pipeline de Vendas (Status counts)
+  const countNegociacao = filteredVendas.filter(v => v.status === 'em_negociacao').length;
+  const countGanho = wonVendas.length;
+  const countPerdido = lostVendas.length;
+  
+  const pipelineData = [
+    { name: 'Em Negociação', value: countNegociacao, color: '#C9A227' },
+    { name: 'Ganhos', value: countGanho, color: '#7FA88C' },
+    { name: 'Perdidos', value: countPerdido, color: '#B5504B' }
+  ];
+
+  // 11. Gráfico Histórico de 6 Meses (Linha/Área)
+  // Agrupa entradas e saídas confirmadas nos últimos 6 meses (Fevereiro a Julho de 2026)
+  const mesesHistoricos = ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'];
+  const chartHistoricoData = mesesHistoricos.map(m => {
+    const transDoMes = transacoes.filter(t => {
+      if (!t.data) return false;
+      const cleanDate = t.data.split('T')[0];
+      const parts = cleanDate.split('-');
+      if (parts.length < 2) return false;
+      return `${parts[0]}-${parts[1]}` === m;
+    });
+    const ent = selectedVendedorFilter === 'todos'
+      ? transDoMes.filter(t => t.tipo === 'entrada' && t.status === 'confirmada').reduce((acc, t) => acc + Number(t.valor), 0)
+      : vendas
+          .filter(v => v.vendedor_id === selectedVendedorFilter && v.status === 'ganho' && (v.data_fechamento || v.data_abertura || '').startsWith(m))
+          .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+
+    const sai = selectedVendedorFilter === 'todos'
+      ? transDoMes.filter(t => t.tipo === 'saida' && t.status === 'confirmada').reduce((acc, t) => acc + Number(t.valor), 0)
+      : 0;
+    
+    // Traduz o mês para exibição
+    const [_, mesNum] = m.split('-');
+    const nomesMeses: { [key: string]: string } = {
+      '02': 'Fev', '03': 'Mar', '04': 'Abr', '05': 'Mai', '06': 'Jun', '07': 'Jul'
+    };
+    return {
+      mesLabel: nomesMeses[mesNum],
+      Faturamento: ent,
+      Despesas: sai,
+      Lucro: ent - sai
+    };
+  });
+
+  // =========================================================================
+  // SUBMISSÃO DE PLANOS DE AÇÃO (PDCA)
+  // =========================================================================
+
+  // Submeter Análise de 5 Porquês e gerar Ação Corretiva
+  const handleKaizenSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVendaPerdida || !actionDesc || !actionResponsavel || !actionPrazo) return;
+
+    setSubmittingKaizen(true);
+    try {
+      // Agrupa 5 porquês formatados
+      const causaraiz = whys.filter(w => w.trim() !== '').map((w, i) => `${i + 1}°: ${w}`).join(' | ');
+      
+      const { error } = await supabase
+        .from('pdca_acoes')
+        .insert([
+          {
+            venda_id: selectedVendaPerdida,
+            causa_raiz: causaraiz || 'Não classificado',
+            descricao: actionDesc,
+            responsavel: actionResponsavel,
+            prazo: actionPrazo,
+            status: 'planejada'
+          }
+        ]);
+
+      if (error) throw error;
+
+      // Reset
+      setSelectedVendaPerdida('');
+      setWhys(['', '', '', '', '']);
+      setActionDesc('');
+      setActionResponsavel('');
+      setActionPrazo('');
+      
+      loadData();
+    } catch (error) {
+      console.error('Erro ao salvar Kaizen:', error);
+    } finally {
+      setSubmittingKaizen(false);
+    }
+  };
+
+  // Submeter Ação Avulsa (5W2H)
+  const handleActionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newActionWhat || !newActionWho || !newActionWhen || !newActionWhy) return;
+
+    setSubmittingAction(true);
+    try {
+      const { error } = await supabase
+        .from('pdca_acoes')
+        .insert([
+          {
+            descricao: newActionWhat,
+            responsavel: newActionWho,
+            prazo: newActionWhen,
+            causa_raiz: newActionWhy,
+            status: 'planejada'
+          }
+        ]);
+
+      if (error) throw error;
+
+      // Limpar formulário
+      setNewActionWhat('');
+      setNewActionWho('');
+      setNewActionWhen('');
+      setNewActionWhy('');
+
+      loadData();
+    } catch (error) {
+      console.error('Erro ao registrar ação:', error);
+    } finally {
+      setSubmittingAction(false);
+    }
   };
 
   // Mudar Status da Ação (PDCA)
@@ -202,231 +511,6 @@ export default function GestorDashboard() {
     }
   };
 
-  // Filtragem Dinâmica por Período
-  const filterByPeriod = useCallback((items: any[], dateField: string) => {
-    if (period === 'Q2-2026') {
-      // Q2 = Abril, Maio, Junho de 2026
-      return items.filter(item => {
-        const dateVal = item[dateField];
-        if (!dateVal) return false;
-        const cleanDate = dateVal.split('T')[0];
-        return cleanDate >= '2026-04-01' && cleanDate <= '2026-06-30';
-      });
-    } else {
-      // Período mensal simples (YYYY-MM)
-      return items.filter(item => {
-        const dateVal = item[dateField];
-        if (!dateVal) return false;
-        return dateVal.startsWith(period);
-      });
-    }
-  }, [period]);
-
-  // Obter Metas para o Período Selecionado
-  const activeGoals = (() => {
-    if (period === 'Q2-2026') {
-      // Agregar metas de Abril (04), Maio (05) e Junho (06)
-      const q2Months = ['2026-04', '2026-05', '2026-06'];
-      const filtered = metas.filter(m => q2Months.some(month => m.mes_referencia.startsWith(month)));
-      return [{
-        meta_receita: filtered.reduce((acc, curr) => acc + curr.meta_receita, 0) || 120000.00, // Fallback se não configurado
-        meta_novos_clientes: filtered.reduce((acc, curr) => acc + curr.meta_novos_clientes, 0) || 30
-      }];
-    }
-    const filtered = metas.filter(m => m.mes_referencia.startsWith(period));
-    if (filtered.length > 0) return filtered;
-    
-    // Fallback padrão se não configurado no banco para o mês
-    return [{
-      meta_receita: period === '2026-06' ? 50000.00 : 60000.00,
-      meta_novos_clientes: period === '2026-06' ? 15 : 20
-    }];
-  })();
-
-  const metaReceitaTotal = activeGoals[0].meta_receita;
-  const metaNovosClientesTotal = activeGoals[0].meta_novos_clientes;
-
-  // Filtrar dados do período
-  const periodVendas = filterByPeriod(vendas, 'data_abertura');
-  const periodTrans = filterByPeriod(transacoes, 'data');
-  const periodClientes = filterByPeriod(clientes, 'created_at');
-
-  // 1. Receita Realizada (Entradas confirmadas no fluxo de caixa no período)
-  const totalEntradas = periodTrans
-    .filter(t => t.tipo === 'entrada')
-    .reduce((acc, t) => acc + Number(t.valor), 0);
-
-  // 2. Despesas Operacionais (Saídas confirmadas no fluxo de caixa no período)
-  const totalSaidas = periodTrans
-    .filter(t => t.tipo === 'saida')
-    .reduce((acc, t) => acc + Number(t.valor), 0);
-
-  // 3. Saldo Líquido Operacional
-  const saldoOperacional = totalEntradas - totalSaidas;
-
-  // 4. Ticket Médio das vendas fechadas (Ganhos)
-  const wonVendas = periodVendas.filter(v => v.status === 'ganho');
-  const ticketMedio = wonVendas.length > 0 
-    ? wonVendas.reduce((acc, v) => acc + Number(v.valor_contrato), 0) / wonVendas.length 
-    : 0;
-
-  // 5. Quantidade de novos clientes ativos cadastrados no período
-  const novosClientesCadastrados = periodClientes.filter(c => c.status === 'ativo').length;
-
-  // 6. Taxa de conversão de leads (vendas ganhas / total oportunidades abertas no período)
-  const lostVendas = periodVendas.filter(v => v.status === 'perdido');
-  const totalOportunidades = periodVendas.length;
-  const conversionRate = totalOportunidades > 0 
-    ? (wonVendas.length / totalOportunidades) * 100 
-    : 0;
-
-  // 7. Lead Time Médio de Fechamento de Vendas (diferença em dias entre data_fechamento e data_abertura)
-  const closedVendas = periodVendas.filter(v => v.data_fechamento && v.data_abertura);
-  const leadTimeMedio = closedVendas.length > 0
-    ? closedVendas.reduce((acc, v) => {
-        const start = new Date(v.data_abertura).getTime();
-        const end = new Date(v.data_fechamento).getTime();
-        const diffDays = Math.max((end - start) / (1000 * 60 * 60 * 24), 0.5);
-        return acc + diffDays;
-      }, 0) / closedVendas.length
-    : 0;
-
-  // 8. Top 5 Clientes por Faturamento no período
-  const top5Clientes = [...wonVendas]
-    .sort((a, b) => Number(b.valor_contrato) - Number(a.valor_contrato))
-    .slice(0, 5)
-    .map(v => ({
-      nome: v.clientes?.nome || 'Cliente avulso',
-      segmento: v.clientes?.segmento || 'Não Classificado',
-      valor: Number(v.valor_contrato)
-    }));
-
-  // 9. Ranking de Vendedores por Faturamento Fechado no período
-  const rankingVendedoresObj = wonVendas.reduce((acc: any, v) => {
-    const name = v.vendedores?.nome || 'Vendedor Padrão';
-    acc[name] = (acc[name] || 0) + Number(v.valor_contrato);
-    return acc;
-  }, {});
-
-  const rankingVendedores = Object.keys(rankingVendedoresObj)
-    .map(name => ({ nome: name, valor: rankingVendedoresObj[name] }))
-    .sort((a, b) => b.valor - a.valor);
-
-  // 10. Funil de Vendas (Pipeline)
-  const countNegociacao = periodVendas.filter(v => v.status === 'em_negociacao').length;
-  const countGanho = wonVendas.length;
-  const countPerdido = lostVendas.length;
-  
-  const pipelineData = [
-    { name: 'Em Negociação', value: countNegociacao, color: '#C9A227' },
-    { name: 'Ganhos', value: countGanho, color: '#7FA88C' },
-    { name: 'Perdidos', value: countPerdido, color: '#B5504B' }
-  ];
-
-  // 11. Gráfico Histórico de 6 Meses (Linha/Área)
-  // Agrupa entradas e saídas confirmadas nos últimos 6 meses (Fevereiro a Julho de 2026)
-  const mesesHistoricos = ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'];
-  const chartHistoricoData = mesesHistoricos.map(m => {
-    const transDoMes = transacoes.filter(t => {
-      if (!t.data) return false;
-      const cleanDate = t.data.split('T')[0];
-      return cleanDate.startsWith(m);
-    });
-
-    const labelMap: any = {
-      '2026-02': 'Fev/26',
-      '2026-03': 'Mar/26',
-      '2026-04': 'Abr/26',
-      '2026-05': 'Mai/26',
-      '2026-06': 'Jun/26',
-      '2026-07': 'Jul/26'
-    };
-
-    return {
-      mesLabel: labelMap[m],
-      Faturamento: transDoMes.filter(t => t.tipo === 'entrada').reduce((acc, t) => acc + Number(t.valor), 0),
-      Despesas: transDoMes.filter(t => t.tipo === 'saida').reduce((acc, t) => acc + Number(t.valor), 0)
-    };
-  });
-
-  // Cadastro de Novo Kaizen (5 Porquês + Ação Corretiva 5W2H)
-  const handleKaizenSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedVendaPerdida || !actionDesc || !actionResponsavel || !actionPrazo) return;
-
-    setSubmittingKaizen(true);
-
-    try {
-      const causaRaizString = whys
-        .filter(w => w.trim() !== '')
-        .map((w, idx) => `${idx + 1}º: ${w}`)
-        .join(' | ');
-
-      const { error: insertError } = await supabase
-        .from('pdca_acoes')
-        .insert([
-          {
-            descricao: actionDesc,
-            causa_raiz: causaRaizString || 'Não detalhado',
-            responsavel: actionResponsavel,
-            prazo: actionPrazo,
-            status: 'planejada',
-            venda_id: selectedVendaPerdida
-          }
-        ]);
-
-      if (insertError) throw insertError;
-
-      // Reseta formulário
-      setSelectedVendaPerdida('');
-      setWhys(['', '', '', '', '']);
-      setActionDesc('');
-      setActionResponsavel('');
-      setActionPrazo('');
-      
-      loadData();
-    } catch (error) {
-      console.error('Erro ao registrar Kaizen no Supabase:', error);
-    } finally {
-      setSubmittingKaizen(false);
-    }
-  };
-
-  // Cadastro de Ação Avulsa (5W2H)
-  const handleActionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newActionWhat || !newActionWhy || !newActionWho || !newActionWhen) return;
-
-    setSubmittingAction(true);
-
-    try {
-      const { error: insertError } = await supabase
-        .from('pdca_acoes')
-        .insert([
-          {
-            descricao: newActionWhat,
-            causa_raiz: newActionWhy,
-            responsavel: newActionWho,
-            prazo: newActionWhen,
-            status: 'planejada'
-          }
-        ]);
-
-      if (insertError) throw insertError;
-
-      setNewActionWhat('');
-      setNewActionWhy('');
-      setNewActionWho('');
-      setNewActionWhen('');
-      
-      loadData();
-    } catch (error) {
-      console.error('Erro ao adicionar ação avulsa:', error);
-    } finally {
-      setSubmittingAction(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-12">
@@ -446,8 +530,8 @@ export default function GestorDashboard() {
   return (
     <div className="p-6 space-y-6 flex-1 flex flex-col pb-20 md:pb-6">
       {/* Barra de Filtros de Período e Andon Light */}
-      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col xl:flex-row gap-4 items-stretch xl:items-center justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Painel Gestor</span>
           <div className="h-4 w-px bg-slate-800 hidden md:block"></div>
           <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1">
@@ -488,6 +572,22 @@ export default function GestorDashboard() {
               2º Trimestre (Q2)
             </button>
           </div>
+
+          {/* Filtro por Vendedor */}
+          <div className="flex bg-[#14181A] border border-[#23282B] p-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase px-2 self-center">Filtrar Vendedor:</span>
+            <select
+              id="filter-vendedor-select"
+              value={selectedVendedorFilter}
+              onChange={(e) => setSelectedVendedorFilter(e.target.value)}
+              className="bg-[#0E1113] border border-[#23282B] text-xs font-semibold text-white px-2 py-1 focus:outline-none focus:border-[#C9A227] rounded-none"
+            >
+              <option value="todos">Todos os Vendedores</option>
+              {vendedores.map(v => (
+                <option key={v.id} value={v.id}>{v.nome}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -525,15 +625,24 @@ export default function GestorDashboard() {
           <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
             <Target className="w-4 h-4" /> PLAN (Planejar) — Objetivos do Período
           </h2>
-          {period !== 'Q2-2026' && (
+          <div className="flex items-center gap-2">
             <button
-              id="btn-edit-goals"
-              onClick={openGoalModal}
+              id="btn-add-vendedor-modal"
+              onClick={() => setIsVendedorModalOpen(true)}
               className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center gap-1.5"
             >
-              <Edit2 className="w-3.5 h-3.5" /> Editar Metas
+              <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
             </button>
-          )}
+            {period !== 'Q2-2026' && (
+              <button
+                id="btn-edit-goals"
+                onClick={openGoalModal}
+                className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center gap-1.5"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> Editar Metas
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Régua de Calibração (Faturamento vs Meta) - Posição de Destaque no Planejamento */}
@@ -1078,7 +1187,7 @@ export default function GestorDashboard() {
         <button
           onClick={() => setMobileTab('dashboard')}
           className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
-            mobileTab === 'dashboard' ? 'text-brand-500' : 'text-slate-400'
+            mobileTab === 'dashboard' ? 'text-[#C9A227]' : 'text-slate-400'
           }`}
         >
           <ClipboardList className="w-5 h-5" />
@@ -1087,7 +1196,7 @@ export default function GestorDashboard() {
         <button
           onClick={() => setMobileTab('whys')}
           className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
-            mobileTab === 'whys' ? 'text-brand-500' : 'text-slate-400'
+            mobileTab === 'whys' ? 'text-[#C9A227]' : 'text-slate-400'
           }`}
         >
           <FileQuestion className="w-5 h-5" />
@@ -1096,7 +1205,7 @@ export default function GestorDashboard() {
         <button
           onClick={() => setMobileTab('actions')}
           className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
-            mobileTab === 'actions' ? 'text-brand-500' : 'text-slate-400'
+            mobileTab === 'actions' ? 'text-[#C9A227]' : 'text-slate-400'
           }`}
         >
           <CheckCircle className="w-5 h-5" />
@@ -1112,7 +1221,7 @@ export default function GestorDashboard() {
           <div className="w-full max-w-[400px] glass-panel border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4">
             <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Target className="w-4.5 h-4.5 text-brand-500" /> Definir Metas Corporativas
+                <Target className="w-4.5 h-4.5 text-[#C9A227]" /> Definir Metas Corporativas
               </h3>
               <button onClick={() => setIsGoalModalOpen(false)} className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white">
                 <X className="w-4 h-4" />
@@ -1167,6 +1276,67 @@ export default function GestorDashboard() {
                 className="w-full btn-primary py-2.5 text-xs mt-2"
               >
                 {submittingGoal ? 'Sincronizando...' : 'Salvar Metas'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL DE CADASTRO DE VENDEDOR
+          ========================================================================= */}
+      {isVendedorModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-[400px] glass-panel border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4">
+            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Plus className="w-4.5 h-4.5 text-[#C9A227]" /> Cadastrar Novo Vendedor
+              </h3>
+              <button onClick={() => setIsVendedorModalOpen(false)} className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {vendedorModalError && (
+              <div className="p-3 bg-[#B5504B]/10 border border-[#B5504B]/20 text-[#B5504B] text-xs font-semibold leading-relaxed">
+                {vendedorModalError}
+              </div>
+            )}
+
+            <form onSubmit={handleVendedorSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="input-vendedor-name" className="text-[10px] font-bold text-slate-400 uppercase">Nome Completo</label>
+                <input
+                  id="input-vendedor-name"
+                  type="text"
+                  required
+                  placeholder="Ex: Mariana Silva"
+                  value={newVendedorNome}
+                  onChange={(e) => setNewVendedorNome(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="input-vendedor-email" className="text-[10px] font-bold text-slate-400 uppercase">E-mail Corporativo</label>
+                <input
+                  id="input-vendedor-email"
+                  type="email"
+                  required
+                  placeholder="Ex: mariana.silva@novapay.com"
+                  value={newVendedorEmail}
+                  onChange={(e) => setNewVendedorEmail(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <button
+                id="btn-save-vendedor-submit"
+                type="submit"
+                disabled={submittingVendedor}
+                className="w-full btn-primary py-2.5 text-xs mt-2"
+              >
+                {submittingVendedor ? 'Sincronizando...' : 'Cadastrar Vendedor'}
               </button>
             </form>
           </div>
