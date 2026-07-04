@@ -657,15 +657,15 @@ export default function GestorDashboard() {
           SEÇÃO METAS - Metas Estabelecidas
           ========================================================================= */}
       <div className={`space-y-3 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <h2 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-1.5">
             <Target className="w-4 h-4" /> Metas do Período — Objetivos Estratégicos
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full md:w-auto">
             <button
               id="btn-add-vendedor-modal"
               onClick={() => setIsVendedorModalOpen(true)}
-              className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center gap-1.5"
+              className="flex-1 md:flex-none px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center justify-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
             </button>
@@ -673,7 +673,7 @@ export default function GestorDashboard() {
               <button
                 id="btn-edit-goals"
                 onClick={openGoalModal}
-                className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center gap-1.5"
+                className="flex-1 md:flex-none px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-brand-400 hover:text-brand-300 transition-all uppercase tracking-wider flex items-center justify-center gap-1.5"
               >
                 <Edit2 className="w-3.5 h-3.5" /> Editar Metas
               </button>
@@ -1216,50 +1216,100 @@ export default function GestorDashboard() {
             </div>
 
             {acoes.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-[#23282B] text-slate-500 uppercase tracking-widest font-bold">
-                      <th className="py-2.5 pr-2">Ação (O quê)</th>
-                      <th className="py-2.5 px-2">Causa Raiz (Porquê)</th>
-                      <th className="py-2.5 px-2">Responsável</th>
-                      <th className="py-2.5 px-2">Prazo</th>
-                      <th className="py-2.5 pl-2 text-center">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#23282B]/60 text-slate-300 font-medium">
-                    {acoes.map((acao) => (
-                      <tr key={acao.id} className="hover:bg-[#0E1113] transition-colors">
-                        <td className="py-3 pr-2 text-white font-semibold leading-relaxed">{acao.descricao}</td>
-                        <td className="py-3 px-2 text-slate-400 leading-normal max-w-[200px] truncate" title={acao.causa_raiz}>{acao.causa_raiz}</td>
-                        <td className="py-3 px-2 font-semibold text-slate-200">{acao.responsavel}</td>
-                        <td className="py-3 px-2 font-mono text-slate-400">
-                          {(() => {
-                            if (!acao.prazo) return '-';
-                            const parts = acao.prazo.split('T')[0].split('-');
-                            if (parts.length < 3) return acao.prazo;
-                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                          })()}
-                        </td>
-                        <td className="py-3 pl-2 text-center">
-                          <button
-                            id={`btn-toggle-action-${acao.id}`}
-                            onClick={() => handleToggleActionStatus(acao.id, acao.status)}
-                            className={`px-2.5 py-1 text-[10px] font-bold border transition-all rounded-none ${
-                              acao.status === 'concluida' 
-                                ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]' 
-                                : acao.status === 'em_andamento'
-                                ? 'bg-[#C9A227]/10 border-[#C9A227]/20 text-[#C9A227]'
-                                : 'bg-[#14181A] border-[#23282B] text-slate-400'
-                            }`}
-                          >
-                            {acao.status === 'concluida' ? 'Concluída' : acao.status === 'em_andamento' ? 'Em Andamento' : 'Planejada'}
-                          </button>
-                        </td>
+              <div>
+                {/* Visualização Mobile: Lista de Cards Fluidos */}
+                <div className="md:hidden space-y-3.5">
+                  {acoes.map((acao) => (
+                    <div key={acao.id} className="bg-[#0E1113] border border-[#23282B] p-4 space-y-3">
+                      <div className="flex justify-between items-start gap-3">
+                        <span className="font-bold text-white text-xs leading-relaxed">{acao.descricao}</span>
+                        <button
+                          id={`btn-toggle-action-mob-${acao.id}`}
+                          onClick={() => handleToggleActionStatus(acao.id, acao.status)}
+                          className={`px-2.5 py-1 text-[9px] font-bold border transition-all rounded-none flex-shrink-0 ${
+                            acao.status === 'concluida' 
+                              ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]' 
+                              : acao.status === 'em_andamento'
+                              ? 'bg-[#C9A227]/10 border-[#C9A227]/20 text-[#C9A227]'
+                              : 'bg-[#14181A] border-[#23282B] text-slate-400'
+                          }`}
+                        >
+                          {acao.status === 'concluida' ? 'Concluída' : acao.status === 'em_andamento' ? 'Em Andamento' : 'Planejada'}
+                        </button>
+                      </div>
+
+                      {acao.causa_raiz && (
+                        <div className="text-[10px] text-slate-400 bg-[#14181A] p-2.5 border border-[#23282B]/60 leading-relaxed">
+                          <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-widest block mb-1">Diagnóstico (Causa Raiz)</span>
+                          {acao.causa_raiz}
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono border-t border-[#23282B]/40 pt-2.5">
+                        <div>
+                          <span className="text-slate-500 font-semibold">Responsável:</span> <span className="text-slate-200 font-bold">{acao.responsavel}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-semibold">Prazo:</span> <span className="text-slate-200 font-bold">
+                            {(() => {
+                              if (!acao.prazo) return '-';
+                              const parts = acao.prazo.split('T')[0].split('-');
+                              if (parts.length < 3) return acao.prazo;
+                              return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Visualização Desktop: Tabela de Grade */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-[#23282B] text-slate-500 uppercase tracking-widest font-bold">
+                        <th className="py-2.5 pr-2">Ação (O quê)</th>
+                        <th className="py-2.5 px-2">Causa Raiz (Porquê)</th>
+                        <th className="py-2.5 px-2">Responsável</th>
+                        <th className="py-2.5 px-2">Prazo</th>
+                        <th className="py-2.5 pl-2 text-center">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-[#23282B]/60 text-slate-300 font-medium">
+                      {acoes.map((acao) => (
+                        <tr key={acao.id} className="hover:bg-[#0E1113] transition-colors">
+                          <td className="py-3 pr-2 text-white font-semibold leading-relaxed">{acao.descricao}</td>
+                          <td className="py-3 px-2 text-slate-400 leading-normal max-w-[200px] truncate" title={acao.causa_raiz}>{acao.causa_raiz}</td>
+                          <td className="py-3 px-2 font-semibold text-slate-200">{acao.responsavel}</td>
+                          <td className="py-3 px-2 font-mono text-slate-400">
+                            {(() => {
+                              if (!acao.prazo) return '-';
+                              const parts = acao.prazo.split('T')[0].split('-');
+                              if (parts.length < 3) return acao.prazo;
+                              return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                            })()}
+                          </td>
+                          <td className="py-3 pl-2 text-center">
+                            <button
+                              id={`btn-toggle-action-${acao.id}`}
+                              onClick={() => handleToggleActionStatus(acao.id, acao.status)}
+                              className={`px-2.5 py-1 text-[10px] font-bold border transition-all rounded-none ${
+                                acao.status === 'concluida' 
+                                  ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]' 
+                                  : acao.status === 'em_andamento'
+                                  ? 'bg-[#C9A227]/10 border-[#C9A227]/20 text-[#C9A227]'
+                                  : 'bg-[#14181A] border-[#23282B] text-slate-400'
+                              }`}
+                            >
+                              {acao.status === 'concluida' ? 'Concluída' : acao.status === 'em_andamento' ? 'Em Andamento' : 'Planejada'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : (
               <p className="text-xs text-slate-500 py-12 text-center font-mono">Nenhum plano de ação registrado.</p>
