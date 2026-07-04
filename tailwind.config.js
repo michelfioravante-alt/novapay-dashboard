@@ -7,50 +7,47 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Cores personalizadas com viés profissional (NovaPay / Lean)
+        // Cores personalizadas conforme especificação exata do usuário
         brand: {
-          50: '#f0f7ff',
-          100: '#e0effe',
-          500: '#0284c7',
-          600: '#0369a1',
-          700: '#075985',
-          800: '#0c4a6e',
-          900: '#0a3a5c',
+          50: '#fcfaf2',
+          100: '#f6f0d4',
+          400: '#C9A227', // Accent único (marcador de meta / detalhes)
+          500: '#C9A227',
+          600: '#C9A227',
+          700: '#a3811f',
+          800: '#7c6218',
+          900: '#564410',
         },
-        // feedback semáforo para o Andon e status comercial
-        andon: {
-          green: '#10b981', // Sucesso / Ganho / Dentro da Meta
-          yellow: '#f59e0b', // Alerta / Em Negociação / Desvio leve
-          red: '#ef4444', // Crítico / Perdido / Fora da Meta
-        },
-        gray: {
-          900: '#0f172a',
-          800: '#1e293b',
-          700: '#334155',
+        slate: {
+          950: '#0E1113', // Fundo principal
+          900: '#14181A', // Painéis
+          800: '#23282B', // Bordas finas
+          700: '#23282B',
           600: '#475569',
           500: '#64748b',
+          400: '#94a3b8',
+          300: '#cbd5e1',
+          200: '#e2e8f0',
           100: '#f1f5f9',
           50: '#f8fafc',
+        },
+        emerald: {
+          400: '#7FA88C', // Verde-sálvia (positivo)
+          500: '#7FA88C',
+          600: '#668a71',
+        },
+        red: {
+          400: '#B5504B', // Terracota (crítico / negativo)
+          500: '#B5504B',
+          600: '#913f3b',
         }
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        mono: ['Space Mono', 'monospace'],
       },
-      animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'fade-in': 'fadeIn 0.5s ease-out forwards',
-        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(12px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        }
-      }
+      animation: {},
+      keyframes: {}
     },
   },
   plugins: [],
