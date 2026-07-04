@@ -554,11 +554,11 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             id="btn-vendedor-refresh"
             onClick={handleRefresh}
-            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-all flex items-center justify-center gap-2"
+            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-all flex items-center justify-center gap-2 flex-shrink-0"
             title="Atualizar Dados"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -568,7 +568,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             <button
               id="btn-open-add-client-full"
               onClick={() => setIsClientModalOpen(true)}
-              className="btn-primary py-2 text-xs flex items-center gap-1.5"
+              className="btn-primary py-2 px-4 text-xs flex items-center gap-1.5 flex-shrink-0 whitespace-nowrap"
             >
               <Plus className="w-4 h-4" /> Cadastrar Cliente
             </button>
@@ -576,7 +576,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
             <button
               id="btn-open-add-sale"
               onClick={() => setIsAddModalOpen(true)}
-              className="btn-primary py-2 text-xs flex items-center gap-1.5"
+              className="btn-primary py-2 px-4 text-xs flex items-center gap-1.5 flex-shrink-0 whitespace-nowrap"
             >
               <Plus className="w-4 h-4" /> Registrar Oportunidade
             </button>
