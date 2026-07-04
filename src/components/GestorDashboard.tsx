@@ -1134,7 +1134,7 @@ export default function GestorDashboard() {
                         id="action-desc"
                         type="text"
                         required
-                        placeholder="Ex: Formular plano de descontos estruturados"
+                        placeholder="Ex: Formular plano de discounts estruturados"
                         value={actionDesc}
                         onChange={(e) => setActionDesc(e.target.value)}
                         className="w-full bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
@@ -1323,55 +1323,54 @@ export default function GestorDashboard() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex items-center justify-around z-40 px-4 shadow-xl">
         <button
           onClick={() => setMobileTab('dashboard')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
-            mobileTab === 'dashboard' ? 'text-[#C9A227]' : 'text-slate-400'
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'dashboard' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <ClipboardList className="w-5 h-5" />
-          <span>Dashboard</span>
+          <TrendingUp className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Métricas</span>
         </button>
+        
         <button
           onClick={() => setMobileTab('whys')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
-            mobileTab === 'whys' ? 'text-[#C9A227]' : 'text-slate-400'
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'whys' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <FileQuestion className="w-5 h-5" />
-          <span>5 Porquês</span>
+          <span className="text-[10px] font-bold font-sans">Diagnóstico</span>
         </button>
+        
         <button
           onClick={() => setMobileTab('actions')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase transition-all ${
-            mobileTab === 'actions' ? 'text-[#C9A227]' : 'text-slate-400'
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            mobileTab === 'actions' ? 'text-brand-500 scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <CheckCircle className="w-5 h-5" />
-          <span>Ações</span>
+          <ClipboardList className="w-5 h-5" />
+          <span className="text-[10px] font-bold font-sans">Planos</span>
         </button>
       </div>
 
-      {/* =========================================================================
-          MODAL DE CONFIGURAÇÃO DE METAS (PLAN)
-          ========================================================================= */}
+      {/* Modal: Editar Metas do Gestor */}
       {isGoalModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-[400px] glass-panel border border-[#23282B] bg-[#14181A] p-6 shadow-none space-y-4">
-            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Target className="w-4.5 h-4.5 text-[#C9A227]" /> Definir Metas Corporativas
-              </h3>
-              <button onClick={() => setIsGoalModalOpen(false)} className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="w-full max-w-[450px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Editar Metas Organizacionais</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Referência: {period}</p>
+              </div>
+              <button onClick={() => setIsGoalModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
             </div>
 
-            {goalModalError && (
-              <div className="p-3 bg-[#B5504B]/10 border border-[#B5504B]/20 text-[#B5504B] text-xs font-semibold leading-relaxed">
-                {goalModalError}
-              </div>
-            )}
-
             <form onSubmit={handleGoalSubmit} className="space-y-4">
+              {goalModalError && (
+                <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
+                  {goalModalError}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Mês de Referência</label>
                 <div className="w-full bg-[#0E1113] border border-[#23282B] px-3 py-2 text-xs font-semibold text-white capitalize">
@@ -1389,7 +1388,7 @@ export default function GestorDashboard() {
                   placeholder="Ex: 100000.00"
                   value={inputMetaReceita}
                   onChange={(e) => setInputMetaReceita(e.target.value)}
-                  className="w-full glass-input text-xs"
+                  className="w-full glass-input text-xs font-mono"
                 />
               </div>
 
@@ -1402,7 +1401,7 @@ export default function GestorDashboard() {
                   placeholder="Ex: 10"
                   value={inputMetaClientes}
                   onChange={(e) => setInputMetaClientes(e.target.value)}
-                  className="w-full glass-input text-xs"
+                  className="w-full glass-input text-xs font-mono"
                 />
               </div>
 
