@@ -48,14 +48,8 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   const [newClientSegment] = useState('Varejo');
   const [isRegisteringClient, setIsRegisteringClient] = useState(false);
 
-  // Checklist Standard Work (Lean Visual Management)
-  const [standardWork, setStandardWork] = useState([
-    { id: 1, text: 'Realizar follow-up das propostas "Em Negociação"', done: false },
-    { id: 2, text: 'Revisar metas individuais do mês', done: false },
-    { id: 3, text: 'Verificar se novos leads foram distribuídos', done: false },
-    { id: 4, text: 'Alimentar os motivos de perda das propostas recusadas', done: false },
-    { id: 5, text: 'Sincronizar dados fechados com o time financeiro', done: false }
-  ]);
+  // Checklist Playbook Comercial (Rotina Diária)
+  const [standardWork, setStandardWork] = useState<any[]>([]);
 
   // Carregar dados de vendas do vendedor e clientes
   const loadData = useCallback(async () => {
@@ -80,13 +74,55 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       if (clientsError) throw clientsError;
       setClients(clientsData || []);
 
+      // 3. Carregar tarefas do dia para o vendedor
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data: tasksData, error: tasksError } = await supabase
+        .from('tarefas_vendedor')
+        .select('*')
+        .eq('vendedor_id', vendedor.id)
+        .eq('data_referencia', todayStr)
+        .order('created_at', { ascending: true });
+
+      if (tasksError) throw tasksError;
+
+      if (tasksData && tasksData.length > 0) {
+        setStandardWork(tasksData.map(t => ({ id: t.id, text: t.descricao, done: t.concluida })));
+      } else {
+        // Se não houver tarefas criadas para hoje, inicializamos com a lista de boas práticas comerciais!
+        const defaultTasks = [
+          'Prospecção: Entrar em contato com 5 novos leads (Outbound)',
+          'Follow-up: Retornar contato de propostas em aberto (Negociação)',
+          'Reuniões: Conduzir reuniões de diagnóstico ou demonstração agendadas',
+          'Atualização de CRM: Registrar motivos de perda das propostas recusadas',
+          'Planejamento: Revisar meta de vendas e comissionamento do mês'
+        ];
+
+        const insertRows = defaultTasks.map(desc => ({
+          vendedor_id: vendedor.id,
+          descricao: desc,
+          concluida: false,
+          data_referencia: todayStr
+        }));
+
+        const { data: newTasks, error: insertError } = await supabase
+          .from('tarefas_vendedor')
+          .insert(insertRows)
+          .select();
+
+        if (insertError) throw insertError;
+
+        if (newTasks) {
+          setStandardWork(newTasks.map(t => ({ id: t.id, text: t.descricao, done: t.concluida })));
+        }
+      }
+
     } catch (err: any) {
       console.error('Erro ao carregar dados do vendedor:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [vendedor.id]);
 
   useEffect(() => {
     loadData();
@@ -116,8 +152,29 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   };
 
   // Toggle Standard Work Checklist
-  const handleToggleTask = (id: number) => {
+  const handleToggleTask = async (id: string | number) => {
+    const isUuid = typeof id === 'string';
+    
+    // Atualização otimista no estado local
     setStandardWork(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+
+    if (isUuid) {
+      const task = standardWork.find(t => t.id === id);
+      if (task) {
+        try {
+          const { error } = await supabase
+            .from('tarefas_vendedor')
+            .update({ concluida: !task.done })
+            .eq('id', id);
+
+          if (error) throw error;
+        } catch (err) {
+          console.error('Erro ao atualizar status da tarefa no banco:', err);
+          // Reverter se der erro
+          setStandardWork(prev => prev.map(t => t.id === id ? { ...t, done: task.done } : t));
+        }
+      }
+    }
   };
 
   // Registrar Novo Cliente Rápido no seletor
@@ -466,13 +523,13 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           )}
         </div>
 
-        {/* Standard Work Checklist (Lean) */}
+        {/* Playbook Comercial Checklist */}
         <div className={`p-6 border-r border-b border-[#23282B] space-y-4 ${mobileTab === 'checklist' ? 'block' : 'hidden md:block'}`}>
           <div>
             <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
-              <ClipboardList className="w-4 h-4 text-brand-400" /> Standard Work Comercial
+              <ClipboardList className="w-4 h-4 text-brand-400" /> Playbook Comercial
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">Procedimento Operacional Padrão diário do vendedor</p>
+            <p className="text-xs text-slate-500 mt-0.5">Rotina comercial diária recomendada</p>
           </div>
 
           <div className="space-y-3.5 pt-2">
@@ -500,7 +557,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
 
           <div className="bg-[#0E1113] border border-[#23282B] p-4 text-xs text-slate-400 leading-relaxed flex gap-2 rounded-none">
             <AlertCircle className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
-            <p>O <strong>Standard Work</strong> garante a padronização do funil de vendas comerciais, mitigando o desperdício de retrabalho e inconsistência operacional.</p>
+            <p>O <strong>Playbook de Atividades</strong> garante a cadência diária de prospecção e follow-up, acelerando a taxa de conversão e evitando leads frios no funil.</p>
           </div>
         </div>
       </div>
@@ -729,7 +786,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           }`}
         >
           <ClipboardList className="w-5 h-5" />
-          <span>Procedimento</span>
+          <span>Playbook</span>
         </button>
       </div>
     </div>

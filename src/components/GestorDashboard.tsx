@@ -323,7 +323,7 @@ export default function GestorDashboard() {
       const cname = v.clientes?.nome || 'Cliente Desconhecido';
       const cseg = v.clientes?.segmento || 'Não especificado';
       if (!clientBillingMap[cid]) {
-        clientBillingMap[cid] = { nome: cname, valor: 0, segmento: cseg };
+          clientBillingMap[cid] = { nome: cname, valor: 0, segmento: cseg };
       }
       clientBillingMap[cid].valor += val;
     });
@@ -600,7 +600,7 @@ export default function GestorDashboard() {
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
 
-          {/* Andon Status Light */}
+          {/* Status de Performance (SLA) */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800">
             <span className="andon-indicator">
               <span className={`andon-indicator-ring ${
@@ -610,8 +610,8 @@ export default function GestorDashboard() {
                 pctReceita >= 95 ? 'bg-emerald-500' : pctReceita >= 70 ? 'bg-amber-500' : 'bg-red-500'
               }`}></span>
             </span>
-            <span className="text-xs font-bold text-slate-300">
-              Andon: {pctReceita >= 95 ? 'Fluxo Estável (Verde)' : pctReceita >= 70 ? 'Atenção (Amarelo)' : 'Intervenção Execida (Vermelho)'}
+            <span className="text-xs font-bold text-slate-300 font-mono">
+              Status: {pctReceita >= 95 ? 'Performance Dentro da Meta (Verde)' : pctReceita >= 70 ? 'Risco de Desvio (Amarelo)' : 'Ação Necessária: Crítico (Vermelho)'}
             </span>
           </div>
         </div>
@@ -716,12 +716,12 @@ export default function GestorDashboard() {
           <ClipboardList className="w-4 h-4" /> Resultados & Diagnóstico — Análise de Performance
         </h2>
 
-        {/* Alertas Andon Ativos (se houver) */}
+        {/* Alertas de Desvios Comerciais (se houver) */}
         {alertas.filter(a => !a.resolvido).length > 0 && (
           <div className="border border-[#B5504B] bg-[#14181A] p-5 space-y-3">
             <div className="flex items-center gap-2 text-[#B5504B] font-bold text-sm">
               <AlertOctagon className="w-4.5 h-4.5" />
-              <span>Painel de Anomalias Ativas (Andon Alert)</span>
+              <span>Painel de Desvios Comerciais (SLA Alert)</span>
             </div>
             <div className="space-y-2">
               {alertas.filter(a => !a.resolvido).map(alerta => (
