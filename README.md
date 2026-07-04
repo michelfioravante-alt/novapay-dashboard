@@ -80,34 +80,53 @@ tarefas_vendedor→ checklist de atividades do vendedor
 
 ---
 
-## ⚙️ Automação — Workflow de Alerta de Meta
+## ⚙️ Automações — Workflows n8n
 
+### Workflow 1 — Alerta de Meta
 **Arquivo:** [`n8n-workflow-alerta-meta.json`](./n8n-workflow-alerta-meta.json)
 
-### O que o workflow faz
+Roda **todo dia às 9h** e verifica se a receita está abaixo de 70% da meta quando faltam ≤ 10 dias para o fim do mês.
 
 ```
-[Cron: todo dia 9h]
-    → [HTTP POST] Chama verificar_meta_mensal() no Supabase RPC
+[Cron: 9h diário]
+    → [HTTP POST] verificar_meta_mensal() no Supabase RPC
     → [IF] alerta_disparado == true?
         → SIM: [HTTP POST] Envia webhook de notificação
-        → NÃO: [NoOp] Registra execução sem alerta
+        → NÃO: [NoOp] Sem alerta
 ```
 
-### Lógica de negócio
+A function SQL registra o alerta em `public.alertas_meta` para auditoria e exibição no painel do gestor.
 
-- Roda **todo dia às 9h** via Cron
-- Calcula dias restantes no mês atual
-- Se `dias_restantes ≤ 10` **E** `receita < 70% da meta` → dispara alerta
-- O alerta é registrado em `public.alertas_meta` para auditoria e exibição no painel
+---
+
+### Workflow 2 — Relatório Semanal por E-mail
+**Arquivo:** [`n8n-workflow-relatorio-semanal.json`](./n8n-workflow-relatorio-semanal.json)
+
+Roda **todo domingo às 18h** e envia um e-mail HTML premium para o gestor com o resumo da semana.
+
+```
+[Cron: domingo 18h]
+    → [HTTP POST] gerar_relatorio_semanal() no Supabase RPC
+    → [Code] Monta template HTML estilizado com os dados
+    → [Send Email SMTP] Envia para gestor@novapay.com
+```
+
+**O e-mail contém:**
+- Receita da semana + variação % vs. semana anterior
+- Negócios ganhos e perdidos (quantidade e valor)
+- Pipeline ativo (em negociação)
+- Progresso da meta mensal com barra visual
+- Vendedor destaque da semana
+- Alerta visual se houver negócios parados há +7 dias
+- Botão CTA para acessar o painel completo
 
 ### Como configurar em produção
 
 1. Instalar n8n via Docker: `docker run -d -p 5678:5678 n8nio/n8n`
-2. Importar `n8n-workflow-alerta-meta.json` pela UI do n8n
+2. Importar os dois arquivos JSON pela UI do n8n
 3. Configurar credencial **Supabase API** com a service role key do projeto
-4. Configurar destino do alerta (Slack webhook, SMTP, ou outra integração)
-5. Ativar o workflow
+4. Configurar credencial **SMTP** (Gmail, Outlook ou Resend)
+5. Ativar os workflows
 
 ---
 
@@ -189,3 +208,4 @@ npm run dev
 ---
 
 *Desenvolvido com assistência de IA (Claude) como ferramenta de produtividade — conforme as regras do teste.*
+

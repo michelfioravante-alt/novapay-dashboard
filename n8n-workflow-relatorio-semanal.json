@@ -1,0 +1,92 @@
+﻿{
+  "name": "NovaPay — Relatorio Semanal por Email",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 18 * * 0" }] }
+      },
+      "id": "1a2b3c4d-0001-0001-0001-000000000001",
+      "name": "Todo Domingo 18h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rxtnlvzxhzyeetpobkyx.supabase.co/rest/v1/rpc/gerar_relatorio_semanal",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$credentials.supabaseApiKey}}" },
+            { "name": "Authorization", "value": "=Bearer {{$credentials.supabaseApiKey}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1a2b3c4d-0002-0002-0002-000000000002",
+      "name": "Buscar Dados Semanais (Supabase RPC)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nconst fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v || 0);\nconst pct = d.mes_atual?.percentual || 0;\nconst var_sinal = d.variacao_pct >= 0 ? '+' : '';\nconst var_cor = d.variacao_pct >= 0 ? '#7FA88C' : '#B5504B';\nconst var_icone = d.variacao_pct >= 0 ? '\u2191' : '\u2193';\nconst barra_pct = Math.min(pct, 100);\nconst alerta_parados = d.parados_7dias > 0\n  ? `<tr><td colspan=\"2\" style=\"background:#B5504B15;border:1px solid #B5504B30;padding:12px 16px;border-radius:4px;\">\n      <span style=\"color:#B5504B;font-weight:700;font-size:12px;\">&#9888; ATEN\u00c7\u00c3O</span><br>\n      <span style=\"color:#ccc;font-size:13px;\">${d.parados_7dias} neg\u00f3cio(s) parado(s) h\u00e1 mais de 7 dias sem atualiza\u00e7\u00e3o</span>\n     </td></tr>`\n  : '';\n\nconst html = `<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Relat\u00f3rio Semanal NovaPay</title>\n</head>\n<body style=\"margin:0;padding:0;background-color:#0A0D0F;font-family:'Helvetica Neue',Arial,sans-serif;\">\n\n<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#0A0D0F;padding:32px 16px;\">\n<tr><td align=\"center\">\n\n<table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:600px;width:100%;\">\n\n  <!-- HEADER -->\n  <tr>\n    <td style=\"background:#0E1113;border:1px solid #23282B;padding:28px 32px;\">\n      <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n        <tr>\n          <td>\n            <span style=\"font-size:20px;font-weight:800;color:#FFFFFF;letter-spacing:-0.5px;\">NovaPay</span>\n            <span style=\"color:#4A5256;font-size:13px;margin-left:8px;\">/</span>\n            <span style=\"color:#7C868A;font-size:13px;margin-left:8px;\">Relat\u00f3rio Semanal</span>\n          </td>\n          <td align=\"right\">\n            <span style=\"background:#C9A22715;border:1px solid #C9A22730;color:#C9A227;font-size:10px;font-weight:700;padding:4px 10px;letter-spacing:0.08em;text-transform:uppercase;\">SEMANAL</span>\n          </td>\n        </tr>\n        <tr>\n          <td colspan=\"2\" style=\"padding-top:6px;\">\n            <span style=\"color:#4A5256;font-size:12px;\">Per\u00edodo: ${d.periodo?.inicio} a ${d.periodo?.fim}</span>\n          </td>\n        </tr>\n      </table>\n    </td>\n  </tr>\n\n  <!-- DIVIDER -->\n  <tr><td style=\"height:1px;background:#23282B;\"></td></tr>\n\n  <!-- RECEITA HERO -->\n  <tr>\n    <td style=\"background:#14181A;border:1px solid #23282B;border-top:none;padding:28px 32px;\">\n      <p style=\"margin:0 0 4px 0;color:#4A5256;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;\">Receita da Semana</p>\n      <p style=\"margin:0;font-size:36px;font-weight:800;color:#FFFFFF;font-family:monospace;letter-spacing:-1px;\">${fmt(d.receita_semana)}</p>\n      <p style=\"margin:6px 0 0 0;font-size:13px;color:${var_cor};font-weight:600;\">\n        ${var_icone} ${var_sinal}${d.variacao_pct}% vs semana anterior (${fmt(d.receita_anterior)})\n      </p>\n    </td>\n  </tr>\n\n  <!-- DIVIDER -->\n  <tr><td style=\"height:8px;background:#0A0D0F;\"></td></tr>\n\n  <!-- KPI GRID -->\n  <tr>\n    <td style=\"padding:0;\">\n      <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n        <tr>\n          <td width=\"50%\" style=\"background:#14181A;border:1px solid #23282B;padding:20px 24px;\">\n            <p style=\"margin:0 0 6px 0;color:#4A5256;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;\">Neg\u00f3cios Ganhos</p>\n            <p style=\"margin:0;font-size:28px;font-weight:800;color:#7FA88C;font-family:monospace;\">${d.negocios?.ganhos || 0}</p>\n            <p style=\"margin:4px 0 0 0;font-size:12px;color:#7C868A;\">${fmt(d.negocios?.valor_ganhos)} em contratos</p>\n          </td>\n          <td width=\"4px\" style=\"background:#0A0D0F;\"></td>\n          <td width=\"50%\" style=\"background:#14181A;border:1px solid #23282B;padding:20px 24px;\">\n            <p style=\"margin:0 0 6px 0;color:#4A5256;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;\">Neg\u00f3cios Perdidos</p>\n            <p style=\"margin:0;font-size:28px;font-weight:800;color:#B5504B;font-family:monospace;\">${d.negocios?.perdidos || 0}</p>\n            <p style=\"margin:4px 0 0 0;font-size:12px;color:#7C868A;\">${fmt(d.negocios?.valor_perdidos)} em contratos</p>\n          </td>\n        </tr>\n        <tr><td colspan=\"3\" style=\"height:4px;background:#0A0D0F;\"></td></tr>\n        <tr>\n          <td width=\"50%\" style=\"background:#14181A;border:1px solid #23282B;padding:20px 24px;\">\n            <p style=\"margin:0 0 6px 0;color:#4A5256;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;\">Em Negocia\u00e7\u00e3o</p>\n            <p style=\"margin:0;font-size:28px;font-weight:800;color:#C9A227;font-family:monospace;\">${d.negocios?.em_negociacao || 0}</p>\n            <p style=\"margin:4px 0 0 0;font-size:12px;color:#7C868A;\">oportunidades ativas</p>\n          </td>\n          <td width=\"4px\" style=\"background:#0A0D0F;\"></td>\n          <td width=\"50%\" style=\"background:#14181A;border:1px solid #23282B;padding:20px 24px;\">\n            <p style=\"margin:0 0 6px 0;color:#4A5256;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;\">Novos Clientes</p>\n            <p style=\"margin:0;font-size:28px;font-weight:800;color:#FFFFFF;font-family:monospace;\">${d.novos_clientes || 0}</p>\n            <p style=\"margin:4px 0 0 0;font-size:12px;color:#7C868A;\">cadastrados na semana</p>\n          </td>\n        </tr>\n      </table>\n    </td>\n  </tr>\n\n  <!-- DIVIDER -->\n  <tr><td style=\"height:8px;background:#0A0D0F;\"></td></tr>\n\n  <!-- META DO MES -->\n  <tr>\n    <td style=\"background:#14181A;border:1px solid #23282B;padding:24px 32px;\">\n      <p style=\"margin:0 0 12px 0;color:#4A5256;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;\">Progresso da Meta Mensal</p>\n      <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n        <tr>\n          <td>\n            <span style=\"font-size:22px;font-weight:800;color:#FFFFFF;font-family:monospace;\">${fmt(d.mes_atual?.receita)}</span>\n            <span style=\"color:#4A5256;font-size:13px;margin-left:8px;\">de ${fmt(d.mes_atual?.meta)}</span>\n          </td>\n          <td align=\"right\">\n            <span style=\"font-size:20px;font-weight:800;color:${pct >= 100 ? '#7FA88C' : pct >= 70 ? '#C9A227' : '#B5504B'};font-family:monospace;\">${pct}%</span>\n          </td>\n        </tr>\n      </table>\n      <!-- PROGRESS BAR -->\n      <div style=\"margin-top:12px;background:#23282B;height:6px;width:100%;\">\n        <div style=\"background:${pct >= 100 ? '#7FA88C' : pct >= 70 ? '#C9A227' : '#B5504B'};height:6px;width:${barra_pct}%;transition:width 0.3s;\"></div>\n      </div>\n    </td>\n  </tr>\n\n  <!-- DIVIDER -->\n  <tr><td style=\"height:8px;background:#0A0D0F;\"></td></tr>\n\n  <!-- DESTAQUE + ALERTAS -->\n  <tr>\n    <td style=\"background:#14181A;border:1px solid #23282B;padding:24px 32px;\">\n      <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n        <!-- Destaque da semana -->\n        <tr>\n          <td style=\"padding-bottom:16px;\">\n            <p style=\"margin:0 0 4px 0;color:#4A5256;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;\">\ud83c\udfc6 Vendedor Destaque</p>\n            <p style=\"margin:0;font-size:16px;font-weight:700;color:#C9A227;\">${d.destaque?.nome}</p>\n            <p style=\"margin:2px 0 0 0;font-size:13px;color:#7C868A;\">${fmt(d.destaque?.valor)} em contratos fechados</p>\n          </td>\n        </tr>\n        <!-- Alertas -->\n        ${alerta_parados}\n      </table>\n    </td>\n  </tr>\n\n  <!-- DIVIDER -->\n  <tr><td style=\"height:8px;background:#0A0D0F;\"></td></tr>\n\n  <!-- CTA -->\n  <tr>\n    <td style=\"background:#14181A;border:1px solid #23282B;padding:24px 32px;text-align:center;\">\n      <a href=\"https://novapay.vercel.app\" style=\"display:inline-block;background:#C9A227;color:#000000;font-weight:800;font-size:12px;text-decoration:none;padding:12px 32px;text-transform:uppercase;letter-spacing:0.1em;\">Acessar Painel Completo &rarr;</a>\n    </td>\n  </tr>\n\n  <!-- FOOTER -->\n  <tr>\n    <td style=\"padding:20px 32px;text-align:center;\">\n      <p style=\"margin:0;color:#4A5256;font-size:11px;\">\u00a9 2026 NovaPay S/A &mdash; Relat\u00f3rio gerado automaticamente via n8n + Supabase</p>\n    </td>\n  </tr>\n\n</table>\n</td></tr></table>\n</body>\n</html>`;\n\nreturn [{ json: { html, subject: `NovaPay | Relatório Semanal ${d.periodo?.inicio} a ${d.periodo?.fim}`, dados: d } }];"
+      },
+      "id": "1a2b3c4d-0003-0003-0003-000000000003",
+      "name": "Montar HTML do Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "relatorios@novapay.com",
+        "toEmail": "gestor@novapay.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "1a2b3c4d-0004-0004-0004-000000000004",
+      "name": "Enviar Email (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [900, 300],
+      "credentials": { "smtp": { "id": "smtp-novapay", "name": "NovaPay SMTP" } }
+    },
+    {
+      "parameters": {},
+      "id": "1a2b3c4d-0005-0005-0005-000000000005",
+      "name": "Concluido",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Todo Domingo 18h": {
+      "main": [[{ "node": "Buscar Dados Semanais (Supabase RPC)", "type": "main", "index": 0 }]]
+    },
+    "Buscar Dados Semanais (Supabase RPC)": {
+      "main": [[{ "node": "Montar HTML do Email", "type": "main", "index": 0 }]]
+    },
+    "Montar HTML do Email": {
+      "main": [[{ "node": "Enviar Email (SMTP)", "type": "main", "index": 0 }]]
+    },
+    "Enviar Email (SMTP)": {
+      "main": [[{ "node": "Concluido", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "createdAt": "2026-07-04T00:00:00.000Z", "updatedAt": "2026-07-04T00:00:00.000Z", "id": "tag-relatorio-semanal", "name": "NovaPay" }],
+  "triggerCount": 1,
+  "updatedAt": "2026-07-04T00:00:00.000Z",
+  "versionId": "novapay-relatorio-semanal-v1"
+}
