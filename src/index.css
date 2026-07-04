@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -91,9 +91,10 @@ select.glass-input option {
   background-color: #23282B !important;
 }
 
-/* Forçar Space Mono em elementos mono */
+/* Forçar Sora em elementos de número/valores com alinhamento tabular */
 .font-mono {
-  font-family: 'Space Mono', monospace !important;
+  font-family: 'Sora', sans-serif !important;
+  font-variant-numeric: tabular-nums !important;
 }
 
 /* Indicadores de Processo (Andon) estáticos, sem animação */

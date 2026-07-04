@@ -44,7 +44,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
-        mono: ['Space Mono', 'monospace'],
+        mono: ['Sora', 'sans-serif'],
       },
       animation: {},
       keyframes: {}
