@@ -8,7 +8,7 @@
 
 | | Link |
 |--|--|
-| **Deploy (Produção)** | *(link Vercel — adicionar antes de enviar)* |
+| **Deploy (Produção)** | https://novapay-dashboard.vercel.app/ |
 | **Repositório** | https://github.com/michelfioravante-alt/novapay-dashboard |
 
 ---
@@ -208,4 +208,5 @@ npm run dev
 ---
 
 *Desenvolvido com assistência de IA (Claude) como ferramenta de produtividade — conforme as regras do teste.*
+
 
