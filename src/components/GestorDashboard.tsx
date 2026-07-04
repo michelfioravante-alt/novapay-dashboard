@@ -228,6 +228,9 @@ export default function GestorDashboard() {
   const metaReceitaTotal = activeGoals.reduce((acc, m) => acc + Number(m.meta_receita), 0);
   const metaNovosClientesTotal = activeGoals.reduce((acc, m) => acc + m.meta_novos_clientes, 0);
 
+  const metaReceita = selectedVendedorFilter === 'todos' ? metaReceitaTotal : 25000.00;
+  const metaNovosClientes = selectedVendedorFilter === 'todos' ? metaNovosClientesTotal : 3;
+
   // 2. Filtragem de Vendas no período (filtrando por vendedor se selecionado)
   const baseFilteredVendas = vendas.filter(v => isInPeriod(v.data_fechamento || v.data_abertura));
   const filteredVendas = selectedVendedorFilter === 'todos'
@@ -288,10 +291,65 @@ export default function GestorDashboard() {
       .filter(v => v.vendedor_id === vend.id && v.status === 'ganho' && isInPeriod(v.data_fechamento))
       .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
     return {
+      id: vend.id,
       nome: vend.nome,
       valor: totalFechado
     };
   }).sort((a, b) => b.valor - a.valor);
+
+  // Cálculo de Pareto dos motivos de perda
+  const motivosFrequencia = (() => {
+    const counts: { [key: string]: number } = {};
+    let totalLost = 0;
+    
+    // Filtramos usando filteredVendas para que mude dinamicamente ao selecionar um vendedor!
+    const lostSales = filteredVendas.filter(v => v.status === 'perdido');
+    
+    lostSales.forEach(s => {
+      let motivo = s.motivo_perda;
+      if (!motivo) {
+        motivo = "Objeção não detalhada";
+      } else if (motivo.includes('->')) {
+        const parts = motivo.split('->');
+        motivo = parts[parts.length - 1].trim();
+      }
+      
+      motivo = motivo.trim();
+      if (motivo.toLowerCase().includes('preço') || motivo.toLowerCase().includes('caro') || motivo.toLowerCase().includes('orçamento')) {
+        motivo = "Preço / Verba Insuficiente";
+      } else if (motivo.toLowerCase().includes('concorrente') || motivo.toLowerCase().includes('concorrência')) {
+        motivo = "Perdido para Concorrente";
+      } else if (motivo.toLowerCase().includes('recurso') || motivo.toLowerCase().includes('funcionalidade') || motivo.toLowerCase().includes('falta')) {
+        motivo = "Falta de Recursos / Fit Técnico";
+      } else if (motivo.toLowerCase().includes('tempo') || motivo.toLowerCase().includes('prazo') || motivo.toLowerCase().includes('demora')) {
+        motivo = "Timing / Prazo de Decisão";
+      } else if (motivo.toLowerCase().includes('fria') || motivo.toLowerCase().includes('contato') || motivo.toLowerCase().includes('sumiu')) {
+        motivo = "Lead Frio / Sem Retorno";
+      }
+      
+      counts[motivo] = (counts[motivo] || 0) + 1;
+      totalLost++;
+    });
+
+    const sorted = Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    let accValue = 0;
+    const result = sorted.map(item => {
+      accValue += item.value;
+      const pct = totalLost > 0 ? (item.value / totalLost) * 100 : 0;
+      const accPct = totalLost > 0 ? (accValue / totalLost) * 100 : 0;
+      return {
+        name: item.name,
+        value: item.value,
+        pct,
+        accPct
+      };
+    });
+
+    return { items: result, total: totalLost };
+  })();
 
   // 9. Top 5 Clientes por Faturamento no período
   const clientBillingMap: { [key: string]: { nome: string; valor: number; segmento: string } } = {};
@@ -560,8 +618,8 @@ export default function GestorDashboard() {
   const vendasPerdidasDisponiveis = vendas.filter(v => v.status === 'perdido');
 
   // Porcentagens vs Meta
-  const pctReceita = metaReceitaTotal > 0 ? (totalEntradas / metaReceitaTotal) * 100 : 0;
-  const pctClientes = metaNovosClientesTotal > 0 ? (novosClientesCadastrados / metaNovosClientesTotal) * 100 : 0;
+  const pctReceita = metaReceita > 0 ? (totalEntradas / metaReceita) * 100 : 0;
+  const pctClientes = metaNovosClientes > 0 ? (novosClientesCadastrados / metaNovosClientes) * 100 : 0;
 
   return (
     <div className="max-w-[1160px] mx-auto w-full px-4 sm:px-7 py-8 pb-20 md:pb-12 space-y-11">
@@ -670,9 +728,9 @@ export default function GestorDashboard() {
           </div>
           <div className="text-xs text-[#B5504B] flex items-center gap-1.5 flex-shrink-0">
             <span className="w-2 h-2 bg-[#B5504B] inline-block"></span>
-            {metaReceitaTotal > 0 && (
+            {metaReceita > 0 && (
               <span>
-                {(metaReceitaTotal > 0 ? ((metaReceitaTotal - totalEntradas) / metaReceitaTotal * 100) : 0).toFixed(0)}% restante · {pctReceita < 70 ? 'abaixo do limiar de segurança' : pctReceita >= 100 ? 'meta atingida' : 'dentro da zona de atenção'}
+                {(metaReceita > 0 ? ((metaReceita - totalEntradas) / metaReceita * 100) : 0).toFixed(0)}% restante · {pctReceita < 70 ? 'abaixo do limiar de segurança' : pctReceita >= 100 ? 'meta atingida' : 'dentro da zona de atenção'}
               </span>
             )}
           </div>
@@ -696,7 +754,7 @@ export default function GestorDashboard() {
           {/* Ticks */}
           <div className="flex justify-between mt-1.5">
             {(['R$ 0', 'R$ 25K', 'R$ 50K', 'R$ 75K',
-              `${new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(metaReceitaTotal)} — meta`
+              `${new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(metaReceita)} — meta`
             ]).map(t => (
               <span key={t} className="text-[10px] font-mono text-[#4A5256]">{t}</span>
             ))}
@@ -756,9 +814,9 @@ export default function GestorDashboard() {
           />
           <ReadoutCard
             label="Novos Clientes"
-            value={`${novosClientesCadastrados} / ${metaNovosClientesTotal}`}
+            value={`${novosClientesCadastrados} / ${metaNovosClientes}`}
             foot={`${pctClientes.toFixed(0)}% da meta`}
-            footRight={metaNovosClientesTotal > novosClientesCadastrados ? `faltam ${metaNovosClientesTotal - novosClientesCadastrados}` : 'atingido'}
+            footRight={metaNovosClientes > novosClientesCadastrados ? `faltam ${metaNovosClientes - novosClientesCadastrados}` : 'atingido'}
             footRightColor={pctClientes >= 100 ? 'pos' : 'warn'}
           />
         </div>
@@ -866,7 +924,7 @@ export default function GestorDashboard() {
           <div className="flex-1 h-px bg-[#23282B]"></div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-[#23282B] border border-[#23282B]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-[#23282B] border border-[#23282B]">
           {/* Top 5 Clientes por Faturamento */}
           <div className="bg-[#14181A] p-6 space-y-4">
             <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Top 5 clientes por faturamento</h3>
@@ -899,43 +957,109 @@ export default function GestorDashboard() {
             )}
           </div>
 
-          {/* Ranking Comercial */}
-          <div className="bg-[#14181A] p-6 space-y-5">
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Ranking comercial</h3>
-              <p className="text-xs text-[#7C868A]">lead time médio: {leadTimeMedio.toFixed(1)}d</p>
-            </div>
+          {/* Ranking Comercial (Leaderboard Interativo) */}
+          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Ranking comercial</h3>
+                <span className="text-[9px] font-mono font-bold text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-1.5 py-0.5 uppercase tracking-wide">
+                  Interativo
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 -mt-2">Clique em um vendedor para isolar suas métricas e andamento comercial</p>
 
-            <div className="space-y-0">
-              {rankingVendedores.map((vend, index) => (
-                <div key={index} className="flex justify-between items-center py-[11px] border-b border-[#1A1F21]">
-                  <div className="flex items-center gap-3">
-                    <span className={`font-mono text-[11px] w-4 ${
-                      index === 0 ? 'text-[#C9A227]' : 'text-[#4A5256]'
-                    }`}>{String(index + 1).padStart(2, '0')}</span>
-                    <span className="text-[#D8DEE1] font-medium" style={{ fontSize: '12.5px' }}>{vend.nome}</span>
-                  </div>
-                  <span className="font-mono" style={{ fontSize: '12.5px' }}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.valor)}
-                  </span>
-                </div>
-              ))}
+              <div className="space-y-1">
+                {rankingVendedores.map((vend, index) => {
+                  const isSelected = selectedVendedorFilter === vend.id;
+                  return (
+                    <div 
+                      key={index} 
+                      onClick={() => setSelectedVendedorFilter(isSelected ? 'todos' : vend.id)}
+                      className={`flex justify-between items-center py-2 px-2.5 border border-transparent cursor-pointer transition-all hover:bg-[#1C2022] ${
+                        isSelected 
+                          ? 'bg-[#C9A227]/10 border-[#C9A227]/20 text-white font-semibold' 
+                          : 'text-[#D8DEE1]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`font-mono text-[10px] w-4 ${
+                          index === 0 ? 'text-[#C9A227] font-bold' : 'text-[#4A5256]'
+                        }`}>{String(index + 1).padStart(2, '0')}</span>
+                        <span className="text-xs">{vend.nome}</span>
+                      </div>
+                      <span className="font-mono text-xs">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.valor)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* KPI Strip */}
-            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B]">
-              <div className="bg-[#14181A] p-3 text-center">
-                <div className="text-[9.5px] font-medium text-[#4A5256] uppercase tracking-[0.05em]">Oportunidades</div>
-                <div className="font-mono text-[17px] mt-1">{totalOportunidades}</div>
+            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B] mt-4">
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Negócios</div>
+                <div className="font-mono text-[15px] mt-0.5 text-white">{totalOportunidades}</div>
               </div>
-              <div className="bg-[#14181A] p-3 text-center">
-                <div className="text-[9.5px] font-medium text-[#4A5256] uppercase tracking-[0.05em]">Conversão</div>
-                <div className="font-mono text-[17px] mt-1 text-[#7FA88C]">{conversionRate.toFixed(1)}%</div>
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Conversão</div>
+                <div className="font-mono text-[15px] mt-0.5 text-[#7FA88C]">{conversionRate.toFixed(1)}%</div>
               </div>
-              <div className="bg-[#14181A] p-3 text-center">
-                <div className="text-[9.5px] font-medium text-[#4A5256] uppercase tracking-[0.05em]">Lead Time</div>
-                <div className="font-mono text-[17px] mt-1">{leadTimeMedio.toFixed(1)}d</div>
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Lead Time</div>
+                <div className="font-mono text-[15px] mt-0.5 text-slate-300">{leadTimeMedio.toFixed(0)}d</div>
               </div>
+            </div>
+          </div>
+
+          {/* Pareto de Motivos de Perdas */}
+          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Análise de Pareto (Objeções)</h3>
+                <p className="text-xs text-[#7C868A] mt-0.5">Motivos mais recorrentes de perdas de negócios</p>
+              </div>
+
+              <div className="space-y-4">
+                {motivosFrequencia.items.slice(0, 4).map((mot, index) => (
+                  <div key={index} className="space-y-1.5">
+                    <div className="flex justify-between items-baseline text-xs">
+                      <span className="text-[#D8DEE1] font-medium truncate max-w-[170px]" title={mot.name}>
+                        {mot.name}
+                      </span>
+                      <span className="font-mono text-slate-500 text-[10px] font-bold">
+                        {mot.value} {mot.value === 1 ? 'perda' : 'perdas'} ({mot.pct.toFixed(0)}%)
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {/* Barra de Progresso Individual */}
+                      <div className="flex-1 h-2 bg-[#0E1113] border border-[#23282B] relative w-full overflow-hidden">
+                        <div 
+                          className="h-full bg-[#B5504B]/80 transition-all duration-500"
+                          style={{ width: `${mot.pct}%` }}
+                        ></div>
+                      </div>
+                      {/* Linha Acumulada Pareto */}
+                      <span className="text-[8.5px] font-mono font-bold text-slate-400 bg-[#1A1F21] px-1.5 py-0.5 whitespace-nowrap" title="Porcentagem acumulada (Pareto)">
+                        {mot.accPct.toFixed(0)}% acum.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                
+                {motivosFrequencia.items.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
+                    <span className="text-2xl">🎉</span>
+                    <p className="text-xs text-slate-500 font-sans">Sem objeções registradas no período!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="text-[9.5px] text-slate-500 leading-normal border-t border-[#1A1F21] pt-3 font-sans">
+              💡 <strong>Regra 80/20:</strong> Concentre esforços de treinamento nas objeções que acumulam até 80% das perdas.
             </div>
           </div>
         </div>
