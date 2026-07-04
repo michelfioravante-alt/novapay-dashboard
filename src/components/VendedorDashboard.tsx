@@ -31,6 +31,10 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
   // Estado do Playbook Dinâmico por Negócio
   const [selectedSaleForPlaybook, setSelectedSaleForPlaybook] = useState<any | null>(null);
   
+  // Estado do Modal de Detalhes da Oportunidade
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedSaleForDetail, setSelectedSaleForDetail] = useState<any | null>(null);
+  
   // Controle de Modais / Formulários
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -99,16 +103,26 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
     loadNotesForSale(sale.id);
   };
 
+  const openDetailModal = (sale: any) => {
+    setSelectedSaleForDetail(sale);
+    setSelectedSaleForNotes(null); // Garantir que não misture os estados
+    setNewNoteText('');
+    setNotesList([]);
+    setIsDetailModalOpen(true);
+    loadNotesForSale(sale.id);
+  };
+
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNoteText.trim() || !selectedSaleForNotes) return;
+    const activeSaleId = selectedSaleForNotes?.id || selectedSaleForDetail?.id;
+    if (!newNoteText.trim() || !activeSaleId) return;
 
     try {
       const { error } = await supabase
         .from('vendas_notas')
         .insert([
           {
-            venda_id: selectedSaleForNotes.id,
+            venda_id: activeSaleId,
             autor_nome: vendedor.nome,
             texto: newNoteText.trim()
           }
@@ -117,7 +131,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
       if (error) throw error;
 
       setNewNoteText('');
-      loadNotesForSale(selectedSaleForNotes.id);
+      loadNotesForSale(activeSaleId);
     } catch (err) {
       console.error('Erro ao adicionar nota:', err);
     }
@@ -655,7 +669,7 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="text-sm font-bold text-white tracking-tight">Minhas Negociações Comerciais</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Exibição sob RLS ativo no Supabase (apenas seus registros comerciais)</p>
+              <p className="text-xs text-slate-500 mt-0.5 font-sans">Carteira comercial exclusiva · Arraste os cards para atualizar o estágio em tempo real</p>
             </div>
             {/* Seletor de Modo de Exibição */}
             <div className="flex bg-[#0E1113] border border-[#23282B] p-0.5">
@@ -789,68 +803,85 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
 
                       {/* Lista de Cards */}
                       <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[420px] pr-0.5 scrollbar-thin">
-                        {colSales.map(sale => (
-                          <div
-                            key={sale.id}
-                            draggable="true"
-                            onDragStart={(e) => handleDragStart(e, sale.id)}
-                            className="bg-[#0E1113] border border-[#23282B] p-3 hover:border-slate-500 transition-all cursor-grab active:cursor-grabbing space-y-3.5"
-                          >
-                            <div className="space-y-1">
-                              <div className="flex justify-between items-start gap-1">
-                                <span className="font-bold text-white text-[11px] leading-snug">{sale.clientes?.nome}</span>
-                                <span className="font-mono text-[9px] text-slate-500 font-medium flex-shrink-0">
-                                  {new Date(sale.data_abertura).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                </span>
-                              </div>
-                              <p className="text-[10px] text-slate-500 capitalize">{sale.clientes?.segmento}</p>
-                            </div>
+                        {colSales.map(sale => {
+                          const { done, total, allDone } = (() => {
+                            const list = sale.playbook_checklist && Array.isArray(sale.playbook_checklist) && sale.playbook_checklist.length > 0
+                              ? sale.playbook_checklist
+                              : getPlaybookTemplates(sale.status);
+                            const tCount = list.length;
+                            const dCount = list.filter((t: any) => t.done).length;
+                            return { done: dCount, total: tCount, allDone: tCount > 0 && dCount === tCount };
+                          })();
 
-                            <div className="flex justify-between items-center pt-2.5 border-t border-[#1A1F21] gap-2">
-                              <span className="font-mono text-[11.5px] font-bold text-slate-200">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(sale.valor_contrato)}
-                              </span>
-                              
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  onClick={() => setSelectedSaleForPlaybook(sale)}
-                                  className={`p-1 border rounded-none transition-colors ${
-                                    selectedSaleForPlaybook?.id === sale.id 
-                                      ? 'bg-[#C9A227] border-[#C9A227] text-[#0E1113]' 
-                                      : 'bg-[#14181A] border-[#23282B] text-slate-300 hover:text-white'
-                                  }`}
-                                  title="Playbook por Etapa"
-                                >
-                                  <ClipboardList className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  id={`btn-kanban-notes-${sale.id}`}
-                                  onClick={() => openNotesModal(sale)}
-                                  className="p-1 bg-[#14181A] border border-[#23282B] text-[#C9A227] hover:text-white transition-colors"
-                                  title="Notas de CRM"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  id={`btn-kanban-edit-${sale.id}`}
-                                  onClick={() => openStatusModal(sale)}
-                                  className="p-1 bg-[#14181A] border border-[#23282B] text-slate-300 hover:text-white transition-colors"
-                                  title="Status & Motivo"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  id={`btn-kanban-delete-${sale.id}`}
-                                  onClick={() => handleDeleteSale(sale.id)}
-                                  className="p-1 bg-[#14181A] border border-[#23282B] text-slate-500 hover:text-red-400 hover:border-red-500/30 transition-colors"
-                                  title="Excluir"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                          return (
+                            <div
+                              key={sale.id}
+                              draggable="true"
+                              onDragStart={(e) => handleDragStart(e, sale.id)}
+                              onClick={() => openDetailModal(sale)}
+                              className="bg-[#0E1113] border border-[#23282B] p-3 hover:border-slate-500 hover:bg-[#14181A] transition-all cursor-pointer space-y-3.5"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex justify-between items-start gap-1">
+                                  <span className="font-bold text-white text-[11px] leading-snug">{sale.clientes?.nome}</span>
+                                  <span className="font-mono text-[9px] text-slate-500 font-medium flex-shrink-0">
+                                    {new Date(sale.data_abertura).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 capitalize">{sale.clientes?.segmento}</p>
+                              </div>
+
+                              <div className="flex justify-between items-center pt-2.5 border-t border-[#1A1F21] gap-2">
+                                <span className="font-mono text-[11.5px] font-bold text-slate-200">
+                                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(sale.valor_contrato)}
+                                </span>
+                                
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setSelectedSaleForPlaybook(sale); }}
+                                    className={`p-1 border rounded-none transition-colors flex items-center gap-1.5 ${
+                                      selectedSaleForPlaybook?.id === sale.id 
+                                        ? 'bg-[#C9A227] border-[#C9A227] text-[#0E1113]' 
+                                        : allDone
+                                        ? 'bg-[#7FA88C]/15 border-[#7FA88C]/25 text-[#7FA88C]'
+                                        : 'bg-[#14181A] border-[#23282B] text-slate-300 hover:text-white'
+                                    }`}
+                                    title="Playbook por Etapa"
+                                  >
+                                    <ClipboardList className="w-3.5 h-3.5" />
+                                    <span className="text-[9px] font-mono font-bold">
+                                      {allDone ? `✔ ${done}/${total}` : `${done}/${total}`}
+                                    </span>
+                                  </button>
+                                  <button
+                                    id={`btn-kanban-notes-${sale.id}`}
+                                    onClick={(e) => { e.stopPropagation(); openNotesModal(sale); }}
+                                    className="p-1 bg-[#14181A] border border-[#23282B] text-[#C9A227] hover:text-white transition-colors"
+                                    title="Notas de CRM"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    id={`btn-kanban-edit-${sale.id}`}
+                                    onClick={(e) => { e.stopPropagation(); openStatusModal(sale); }}
+                                    className="p-1 bg-[#14181A] border border-[#23282B] text-slate-300 hover:text-white transition-colors"
+                                    title="Status & Motivo"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    id={`btn-kanban-delete-${sale.id}`}
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteSale(sale.id); }}
+                                    className="p-1 bg-[#14181A] border border-[#23282B] text-slate-500 hover:text-red-400 hover:border-red-500/30 transition-colors"
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                         {colSales.length === 0 && (
                           <div className="text-center py-8 text-[10px] text-slate-600 italic">
                             Arraste leads para cá
@@ -1359,6 +1390,205 @@ export default function VendedorDashboard({ vendedor }: VendedorDashboardProps) 
                 <Check className="w-3.5 h-3.5" /> Adicionar Nota de Histórico
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 5: Detalhes Completos da Oportunidade (Informações + Playbook + Notas CRM) */}
+      {isDetailModalOpen && selectedSaleForDetail && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="w-full max-w-[850px] glass-panel border border-[#23282B] bg-[#14181A] p-6 shadow-2xl space-y-5 animate-slide-up max-h-[90vh] overflow-y-auto scrollbar-thin">
+            
+            {/* Header do Modal */}
+            <div className="flex items-center justify-between border-b border-[#23282B] pb-3.5">
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                  <Target className="w-4.5 h-4.5 text-[#C9A227]" /> Detalhes da Oportunidade Comercial
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5 font-sans">
+                  Empresa: <b className="text-white font-medium">{selectedSaleForDetail.clientes?.nome}</b> · Segmento: <span className="text-slate-400 font-semibold">{selectedSaleForDetail.clientes?.segmento}</span>
+                </p>
+              </div>
+              <button 
+                onClick={() => { setIsDetailModalOpen(false); setSelectedSaleForDetail(null); }} 
+                className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Grid Principal de Conteúdo (Duas colunas no desktop) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Coluna Esquerda: Informações Gerais + Playbook Comercial */}
+              <div className="space-y-5">
+                
+                {/* Informações Gerais */}
+                <div className="bg-[#0E1113] border border-[#23282B] p-4 space-y-3.5">
+                  <h4 className="text-[10px] font-bold text-[#C9A227] uppercase tracking-widest border-b border-[#23282B]/60 pb-1.5">Informações Básicas</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase">Valor do Contrato</span>
+                      <span className="text-base font-extrabold text-white font-mono block">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedSaleForDetail.valor_contrato)}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase">Estágio Atual</span>
+                      <div>
+                        <span className={`px-2 py-0.5 text-[9px] font-bold border rounded-none block w-max ${
+                          selectedSaleForDetail.status === 'ganho'
+                            ? 'bg-[#7FA88C]/15 border-[#7FA88C]/25 text-[#7FA88C]'
+                            : selectedSaleForDetail.status === 'perdido'
+                            ? 'bg-[#B5504B]/15 border-[#B5504B]/25 text-[#B5504B]'
+                            : 'bg-[#C9A227]/15 border-[#C9A227]/25 text-[#C9A227]'
+                        }`}>
+                          {selectedSaleForDetail.status === 'ganho' ? 'Ganho (Fechado)' : selectedSaleForDetail.status === 'perdido' ? 'Perdido (Fechado)' : 'Em Negociação'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase">Data de Abertura</span>
+                      <span className="text-xs font-mono text-slate-300 block">
+                        {new Date(selectedSaleForDetail.data_abertura).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase">Data de Fechamento</span>
+                      <span className="text-xs font-mono text-slate-300 block">
+                        {selectedSaleForDetail.data_fechamento ? new Date(selectedSaleForDetail.data_fechamento).toLocaleDateString('pt-BR') : '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {selectedSaleForDetail.status === 'perdido' && selectedSaleForDetail.motivo_perda && (
+                    <div className="pt-2.5 border-t border-[#23282B]/60 space-y-1">
+                      <span className="text-[9px] font-bold text-[#B5504B] uppercase">Motivo de Perda (Diagnóstico)</span>
+                      <p className="text-[11.5px] text-slate-400 leading-relaxed font-sans">{selectedSaleForDetail.motivo_perda}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Playbook Comercial da Etapa */}
+                <div className="bg-[#0E1113] border border-[#23282B] p-4 space-y-3.5">
+                  <div className="flex justify-between items-center border-b border-[#23282B]/60 pb-1.5">
+                    <h4 className="text-[10px] font-bold text-[#C9A227] uppercase tracking-widest">Playbook de Processos</h4>
+                    <span className="text-[9px] font-mono text-slate-500 font-bold">Recomendado para esta etapa</span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {(() => {
+                      const currentChecklist = selectedSaleForDetail.playbook_checklist && Array.isArray(selectedSaleForDetail.playbook_checklist) && selectedSaleForDetail.playbook_checklist.length > 0
+                        ? selectedSaleForDetail.playbook_checklist
+                        : getPlaybookTemplates(selectedSaleForDetail.status);
+
+                      return currentChecklist.map((task: any, index: number) => (
+                        <div 
+                          key={index}
+                          onClick={async () => {
+                            // Atualizar localmente no modal de detalhes
+                            const updatedChecklist = currentChecklist.map((t: any) => 
+                              t.text === task.text ? { ...t, done: !t.done } : t
+                            );
+                            const updatedSale = { ...selectedSaleForDetail, playbook_checklist: updatedChecklist };
+                            setSelectedSaleForDetail(updatedSale);
+                            
+                            // Atualizar no array local geral
+                            setSales(prev => prev.map(s => s.id === selectedSaleForDetail.id ? updatedSale : s));
+
+                            // Salvar no Supabase
+                            try {
+                              await supabase
+                                .from('vendas')
+                                .update({ playbook_checklist: updatedChecklist })
+                                .eq('id', selectedSaleForDetail.id);
+                            } catch (err) {
+                              console.error('Erro ao atualizar playbook no modal de detalhes:', err);
+                            }
+                          }}
+                          className={`p-2.5 border cursor-pointer flex items-center justify-between group rounded-none transition-all ${
+                            task.done 
+                              ? 'bg-[#7FA88C]/5 border-[#7FA88C]/15 text-slate-500' 
+                              : 'bg-[#14181A] border-[#23282B]/85 text-slate-300 hover:border-slate-500'
+                          }`}
+                        >
+                          <span className={`text-[11px] font-semibold leading-normal ${task.done ? 'line-through text-slate-500' : ''}`}>{task.text}</span>
+                          <div className={`h-4 w-4 border flex items-center justify-center rounded-none flex-shrink-0 ml-3 ${
+                            task.done 
+                              ? 'bg-[#7FA88C]/20 border-[#7FA88C] text-[#7FA88C]' 
+                              : 'border-[#23282B] group-hover:border-slate-500'
+                          }`}>
+                            {task.done && <Check className="w-2.5 h-2.5" />}
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Coluna Direita: Anotações de Follow-up (CRM) */}
+              <div className="bg-[#0E1113] border border-[#23282B] p-4 flex flex-col justify-between max-h-[500px]">
+                
+                <div className="space-y-3.5 flex flex-col flex-1 overflow-hidden">
+                  <h4 className="text-[10px] font-bold text-[#C9A227] uppercase tracking-widest border-b border-[#23282B]/60 pb-1.5 flex-shrink-0">Histórico de Follow-up (CRM)</h4>
+                  
+                  {/* Listagem de Notas com Rolagem */}
+                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
+                    {loadingNotes ? (
+                      <p className="text-xs text-slate-500 text-center py-4 font-mono">Carregando histórico...</p>
+                    ) : notesList.length > 0 ? (
+                      notesList.map((note) => (
+                        <div key={note.id} className="bg-[#14181A] p-3 border border-[#23282B]/80 space-y-1">
+                          <div className="flex justify-between items-center text-[9px] text-slate-500 font-mono font-bold uppercase">
+                            <span className="text-[#C9A227]">{note.autor_nome}</span>
+                            <span>
+                              {new Date(note.created_at).toLocaleDateString('pt-BR')} {new Date(note.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed font-sans">{note.texto}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-slate-500 text-center py-6 italic font-sans">Nenhuma anotação de follow-up registrada.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Formulário para Nova Nota */}
+                <div className="pt-3 border-t border-[#23282B]/60 mt-3 flex-shrink-0">
+                  <form onSubmit={handleAddNote} className="space-y-3">
+                    <div className="space-y-1">
+                      <label htmlFor="detail-note-text" className="text-[9px] font-bold text-slate-400 uppercase">Nova Anotação de Contato</label>
+                      <textarea
+                        id="detail-note-text"
+                        required
+                        rows={2}
+                        placeholder="Adicione um follow-up rápido com este cliente..."
+                        value={newNoteText}
+                        onChange={(e) => setNewNoteText(e.target.value)}
+                        className="w-full glass-input text-xs leading-relaxed resize-none"
+                      ></textarea>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full btn-primary py-2 text-xs flex items-center justify-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" /> Adicionar Histórico
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
         </div>
       )}
