@@ -109,3 +109,5 @@ graph TD
 1. **Testes Unitários e de Integração:** Desenvolveria suites de testes usando Jest e Testing Library para validar o roteamento e a simulação de RLS.
 2. **Dashboard n8n Executável:** Disponibilizaria o n8n hospedado na nuvem (em vez do arquivo exportado) com integrações com serviços reais de e-mail (SendGrid) e WhatsApp API para demonstrar a notificação funcionando ao vivo.
 3. **Pipeline de CI/CD Completo:** Configuração de GitHub Actions para rodar testes automatizados e linters a cada Pull Request, garantindo que o deploy na Vercel só ocorra após a validação completa da qualidade do código.
+4. **Visualização Kanban de Negociações:** Substituiria ou integraria a listagem de propostas por um quadro visual Kanban (drag-and-drop) para os estágios abertos, facilitando a rotina de follow-up do vendedor.
+5. **Múltiplos Estágios de Pipeline no Banco:** Desmembraria o status genérico de `'em_negociacao'` em fases granulares no Postgres (`prospecção`, `diagnóstico`, `proposta` e `ajustes finais`), otimizando o mapeamento real do funil e cruzando taxas de drop-off por etapa.

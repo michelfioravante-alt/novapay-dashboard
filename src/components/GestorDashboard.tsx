@@ -391,10 +391,10 @@ export default function GestorDashboard() {
   wonVendas.forEach(v => {
     const seg = v.clientes?.segmento || 'Não especificado';
     if (!ticketMedioPorSegmento[seg]) {
-      ticketMedioPorSegmento[seg] = { valorTotal: 0, quantity: 0 };
+      ticketMedioPorSegmento[seg] = { valorTotal: 0, quantidade: 0 };
     }
     ticketMedioPorSegmento[seg].valorTotal += Number(v.valor_contrato);
-    ticketMedioPorSegmento[seg].quantidade = (ticketMedioPorSegmento[seg].quantidade || 0) + 1;
+    ticketMedioPorSegmento[seg].quantidade += 1;
   });
 
   // 14. Projeção de Faturamento Fim do Mês (Ritmo Atual)
@@ -882,6 +882,46 @@ export default function GestorDashboard() {
                   <p className="text-base font-extrabold text-white mt-1 font-mono">{entry.value}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="border-t border-[#23282B] pt-4 space-y-2.5">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Funil de Conversão Comercial</span>
+              
+              <div className="space-y-2 text-[10px]">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-slate-300 font-semibold">
+                    <span>1. Oportunidades Totais (Entrada)</span>
+                    <span className="font-mono text-white font-bold">{totalOportunidades} (100%)</span>
+                  </div>
+                  <div className="h-2 bg-[#0E1113] border border-[#23282B] rounded-none overflow-hidden">
+                    <div className="h-full bg-slate-600" style={{ width: '100%' }}></div>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-slate-300 font-semibold">
+                    <span>2. Negociações Ativas (MoFu)</span>
+                    <span className="font-mono text-[#C9A227] font-bold">
+                      {countNegociacao} ({totalOportunidades > 0 ? ((countNegociacao / totalOportunidades) * 100).toFixed(0) : 0}%)
+                    </span>
+                  </div>
+                  <div className="h-2 bg-[#0E1113] border border-[#23282B] rounded-none overflow-hidden">
+                    <div className="h-full bg-[#C9A227]" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades) * 100 : 0}%` }}></div>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-slate-300 font-semibold">
+                    <span>3. Negócios Ganhos (BoFu)</span>
+                    <span className="font-mono text-[#7FA88C] font-bold">
+                      {countGanho} ({conversionRate.toFixed(0)}%)
+                    </span>
+                  </div>
+                  <div className="h-2 bg-[#0E1113] border border-[#23282B] rounded-none overflow-hidden">
+                    <div className="h-full bg-[#7FA88C]" style={{ width: `${conversionRate}%` }}></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
