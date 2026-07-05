@@ -1024,66 +1024,67 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           SEÇÃO RESULTADOS — KPIs
           ========================================================================= */}
       <div className={`space-y-8 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
-        {/* Section label + Period tabs scrollable inline */}
-        <div className="flex items-center gap-3">
-          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap flex-shrink-0">Resultados do período</span>
-          <div
-            className="flex-1 min-w-0 flex items-center gap-5 overflow-x-auto"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
-          >
-            {(() => {
-              const items: { id: string; label: string }[] = [];
-              const now = new Date(2026, 6, 1); // Julho 2026
-              const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        {/* Dois Filtros Unidos */}
+        <div className="flex flex-col gap-2 max-w-[280px]">
+          <div className="flex items-center bg-[#14181A] border border-[#23282B] px-3 py-1.5 justify-between">
+            <span className="text-[10px] font-bold text-[#4A5256] uppercase tracking-wider pr-2">Período:</span>
+            <select
+              id="filter-period-select"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="bg-[#14181A] text-[11px] font-semibold text-white py-0.5 focus:outline-none border-none cursor-pointer w-40 text-right"
+            >
+              <optgroup label="Meses" className="bg-[#0E1113]">
+                {(() => {
+                  const opts = [];
+                  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                  const now = new Date(2026, 6, 1);
+                  for (let i = 0; i < 18; i++) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    opts.push(<option key={`${y}-${m}`} value={`${y}-${m}`} className="bg-[#0E1113] text-white">{monthNames[d.getMonth()]} {y}</option>);
+                  }
+                  return opts;
+                })()}
+              </optgroup>
+              <optgroup label="Trimestres" className="bg-[#0E1113]">
+                {[2026,2025].flatMap(y => [4,3,2,1].map(q => (
+                  <option key={`Q${q}-${y}`} value={`Q${q}-${y}`} className="bg-[#0E1113] text-white">{q}º Trimestre {y}</option>
+                )))}
+              </optgroup>
+              <optgroup label="Semestres" className="bg-[#0E1113]">
+                {[2026,2025].flatMap(y => [2,1].map(s => (
+                  <option key={`S${s}-${y}`} value={`S${s}-${y}`} className="bg-[#0E1113] text-white">{s}º Semestre {y}</option>
+                )))}
+              </optgroup>
+            </select>
+          </div>
 
-              // Últimos 18 meses
-              for (let i = 0; i < 18; i++) {
-                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                items.push({ id: `${y}-${m}`, label: `${monthNames[d.getMonth()]} ${y}` });
-              }
-
-              // Trimestres dos últimos 2 anos
-              for (let y = 2026; y >= 2025; y--) {
-                for (let q = 4; q >= 1; q--) {
-                  const id = `Q${q}-${y}`;
-                  if (!items.find(x => x.id === id))
-                    items.push({ id, label: `Q${q} ${y}` });
-                }
-              }
-
-              // Semestres
-              for (let y = 2026; y >= 2025; y--) {
-                for (let s = 2; s >= 1; s--) {
-                  const id = `S${s}-${y}`;
-                  if (!items.find(x => x.id === id))
-                    items.push({ id, label: `${s}ºSem ${y}` });
-                }
-              }
-
-              return items.map(p => (
-                <button
-                  key={p.id}
-                  id={`filter-period-${p.id}`}
-                  onClick={() => setPeriod(p.id)}
-                  className={`whitespace-nowrap text-[10.5px] font-semibold transition-colors pb-0.5 flex-shrink-0 ${
-                    period === p.id
-                      ? 'text-[#C9A227] border-b border-[#C9A227]'
-                      : 'text-[#4A5256] hover:text-slate-400 border-b border-transparent'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ));
-            })()}
+          <div className="flex items-center bg-[#14181A] border border-[#23282B] px-3 py-1.5 justify-between">
+            <span className="text-[10px] font-bold text-[#4A5256] uppercase tracking-wider pr-2">Vendedor:</span>
+            <select
+              id="filter-vendedor-select"
+              value={selectedVendedorFilter}
+              onChange={(e) => setSelectedVendedorFilter(e.target.value)}
+              className="bg-[#14181A] text-[11px] font-semibold text-white py-0.5 focus:outline-none border-none cursor-pointer w-40 text-right"
+            >
+              <option value="todos" className="bg-[#0E1113] text-white">Todos os Vendedores</option>
+              {vendedores.filter(v => v.perfil === 'vendedor').map(v => (
+                <option key={v.id} value={v.id} className="bg-[#0E1113] text-white">{v.nome}</option>
+              ))}
+            </select>
           </div>
         </div>
 
+        {/* Linha branca/cinza horizontal divisória */}
+        <div className="h-px bg-[#23282B] w-full mb-6"></div>
 
-
-
-
+        {/* Resultados do período */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Resultados do período</span>
+          <div className="flex-1 h-px bg-[#23282B]"></div>
+        </div>
 
 
         {/* Readout Grid (hero + 4 cards) */}
@@ -1261,8 +1262,125 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             </div>
           </div>
 
-          {/* Ranking Comercial (Leaderboard Interativo Ganhos & Perdas) */}
+          {/* Pipeline de Vendas (Funil Comercial) */}
           <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
+            <div>
+              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Pipeline de vendas (Funil)</h3>
+              <p className="text-xs text-[#7C868A] mt-1">Status das negociações do período</p>
+            </div>
+
+            {/* Visualização de Funil Comercial Geométrico */}
+            <div className="space-y-2.5 py-2">
+              {/* Estágio 1: Em Negociação (Topo do Funil - 100%) */}
+              <div
+                className="mx-auto bg-[#C9A227]/5 border border-[#C9A227]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#C9A227]/10"
+                style={{ width: '100%' }}
+              >
+                <div className="flex justify-between items-center z-10">
+                  <span className="text-[9.5px] font-bold text-[#C9A227] uppercase tracking-wider">1. Em Negociação</span>
+                  <span className="text-[11px] font-mono font-bold text-white">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorNegociando)}
+                  </span>
+                </div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#C9A227] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades * 100) : 0}%` }}></div>
+              </div>
+
+              {/* Estágio 2: Fechado Ganho (Meio do Funil - 85%) */}
+              <div
+                className="mx-auto bg-[#7FA88C]/5 border border-[#7FA88C]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#7FA88C]/10"
+                style={{ width: '85%' }}
+              >
+                <div className="flex justify-between items-center z-10">
+                  <span className="text-[9.5px] font-bold text-[#7FA88C] uppercase tracking-wider">2. Fechado Ganho</span>
+                  <span className="text-[11px] font-mono font-bold text-white">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorGanho)}
+                  </span>
+                </div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#7FA88C] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countGanho / totalOportunidades * 100) : 0}%` }}></div>
+              </div>
+
+              {/* Estágio 3: Fechado Perdido (Fundo do Funil - 70%) */}
+              <div
+                className="mx-auto bg-[#B5504B]/5 border border-[#B5504B]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#B5504B]/10"
+                style={{ width: '70%' }}
+              >
+                <div className="flex justify-between items-center z-10">
+                  <span className="text-[9.5px] font-bold text-[#B5504B] uppercase tracking-wider">3. Fechado Perdido</span>
+                  <span className="text-[11px] font-mono font-bold text-white">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorPerdido)}
+                  </span>
+                </div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#B5504B] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countPerdido / totalOportunidades * 100) : 0}%` }}></div>
+              </div>
+            </div>
+
+            {/* KPI Strip Informativo */}
+            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B] mt-2">
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Negócios Totais</div>
+                <div className="font-mono text-[14px] mt-0.5 text-white">{totalOportunidades}</div>
+              </div>
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Ganho</div>
+                <div className="font-mono text-[14px] mt-0.5 text-[#7FA88C] font-bold">
+                  {totalOportunidades > 0 ? ((countGanho / totalOportunidades) * 100).toFixed(0) : '0'}%
+                </div>
+              </div>
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Perda</div>
+                <div className="font-mono text-[14px] mt-0.5 text-[#B5504B]">
+                  {totalOportunidades > 0 ? ((countPerdido / totalOportunidades) * 100).toFixed(0) : '0'}%
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabelas de Qualidade */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Clientes e ranking</span>
+          <div className="flex-1 h-px bg-[#23282B]"></div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-[#23282B] border border-[#23282B]">
+          {/* Top 5 Clientes por Faturamento */}
+          <div className="bg-[#14181A] p-6 space-y-4 lg:col-span-1">
+            <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Top 5 clientes por faturamento</h3>
+            <p className="text-xs text-[#7C868A] -mt-2">Período corrente</p>
+            {top5Clientes.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse" style={{ fontSize: '12.5px' }}>
+                  <thead>
+                    <tr className="border-b border-[#23282B]">
+                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Cliente</th>
+                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Segmento</th>
+                      <th className="pb-2.5 text-right text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Faturamento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top5Clientes.map((client, index) => (
+                      <tr 
+                        key={index} 
+                        onClick={() => handleShowClientDetails(client)}
+                        className="border-b border-[#1A1F21] cursor-pointer hover:bg-[#1C2022] transition-colors"
+                      >
+                        <td className="py-3.5 pr-4 text-[#D8DEE1] font-medium">{client.nome}</td>
+                        <td className="py-3.5 px-4 text-[#4A5256]" style={{ fontSize: '11.5px' }}>{client.segmento}</td>
+                        <td className="py-3.5 text-right font-mono" style={{ fontSize: '12.5px' }}>
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(client.valor)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 py-6 text-center">Nenhuma transação comercial no período.</p>
+            )}
+          </div>
+
+          {/* Ranking Comercial (Leaderboard Interativo Ganhos & Perdas) */}
+          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between lg:col-span-1">
             <div className="space-y-4">
               <div className="flex items-baseline justify-between">
                 <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Ranking & Conversão</h3>
@@ -1342,123 +1460,6 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
               <div className="bg-[#14181A] p-2.5 text-center">
                 <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Lead Time</div>
                 <div className="font-mono text-[15px] mt-0.5 text-slate-300">{leadTimeMedio.toFixed(0)}d</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabelas de Qualidade */}
-        <div className="flex items-center gap-3">
-          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Clientes e ranking</span>
-          <div className="flex-1 h-px bg-[#23282B]"></div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-px bg-[#23282B] border border-[#23282B]">
-          {/* Top 5 Clientes por Faturamento */}
-          <div className="bg-[#14181A] p-6 space-y-4 lg:col-span-1">
-            <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Top 5 clientes por faturamento</h3>
-            <p className="text-xs text-[#7C868A] -mt-2">Período corrente</p>
-            {top5Clientes.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse" style={{ fontSize: '12.5px' }}>
-                  <thead>
-                    <tr className="border-b border-[#23282B]">
-                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Cliente</th>
-                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Segmento</th>
-                      <th className="pb-2.5 text-right text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Faturamento</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {top5Clientes.map((client, index) => (
-                      <tr 
-                        key={index} 
-                        onClick={() => handleShowClientDetails(client)}
-                        className="border-b border-[#1A1F21] cursor-pointer hover:bg-[#1C2022] transition-colors"
-                      >
-                        <td className="py-3.5 pr-4 text-[#D8DEE1] font-medium">{client.nome}</td>
-                        <td className="py-3.5 px-4 text-[#4A5256]" style={{ fontSize: '11.5px' }}>{client.segmento}</td>
-                        <td className="py-3.5 text-right font-mono" style={{ fontSize: '12.5px' }}>
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(client.valor)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500 py-6 text-center">Nenhuma transação comercial no período.</p>
-            )}
-          </div>
-
-          {/* Pipeline de Vendas (Funil Comercial Horizontal - Ocupa 2 Colunas para Maior Destaque de Layout Flat) */}
-          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between lg:col-span-2">
-            <div>
-              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Pipeline de vendas (Funil)</h3>
-              <p className="text-xs text-[#7C868A] mt-1">Status das negociações do período</p>
-            </div>
-            
-            {/* Visualização de Funil Comercial Geometrico */}
-            <div className="space-y-2.5 py-2">
-              {/* Estágio 1: Em Negociação (Topo do Funil - 100%) */}
-              <div 
-                className="mx-auto bg-[#C9A227]/5 border border-[#C9A227]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#C9A227]/10"
-                style={{ width: '100%' }}
-              >
-                <div className="flex justify-between items-center z-10">
-                  <span className="text-[9.5px] font-bold text-[#C9A227] uppercase tracking-wider">1. Em Negociação</span>
-                  <span className="text-[11px] font-mono font-bold text-white">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorNegociando)}
-                  </span>
-                </div>
-                <div className="absolute left-0 bottom-0 h-0.5 bg-[#C9A227] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades * 100) : 0}%` }}></div>
-              </div>
-
-              {/* Estágio 2: Fechado Ganho (Meio do Funil - 85%) */}
-              <div 
-                className="mx-auto bg-[#7FA88C]/5 border border-[#7FA88C]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#7FA88C]/10"
-                style={{ width: '85%' }}
-              >
-                <div className="flex justify-between items-center z-10">
-                  <span className="text-[9.5px] font-bold text-[#7FA88C] uppercase tracking-wider">2. Fechado Ganho</span>
-                  <span className="text-[11px] font-mono font-bold text-white">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorGanho)}
-                  </span>
-                </div>
-                <div className="absolute left-0 bottom-0 h-0.5 bg-[#7FA88C] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countGanho / totalOportunidades * 100) : 0}%` }}></div>
-              </div>
-
-              {/* Estágio 3: Fechado Perdido (Fundo do Funil - 70%) */}
-              <div 
-                className="mx-auto bg-[#B5504B]/5 border border-[#B5504B]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#B5504B]/10"
-                style={{ width: '70%' }}
-              >
-                <div className="flex justify-between items-center z-10">
-                  <span className="text-[9.5px] font-bold text-[#B5504B] uppercase tracking-wider">3. Fechado Perdido</span>
-                  <span className="text-[11px] font-mono font-bold text-white">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorPerdido)}
-                  </span>
-                </div>
-                <div className="absolute left-0 bottom-0 h-0.5 bg-[#B5504B] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countPerdido / totalOportunidades * 100) : 0}%` }}></div>
-              </div>
-            </div>
-
-            {/* KPI Strip Informativo Simplificado */}
-            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B] mt-2">
-              <div className="bg-[#14181A] p-2.5 text-center">
-                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Negócios Totais</div>
-                <div className="font-mono text-[14px] mt-0.5 text-white">{totalOportunidades}</div>
-              </div>
-              <div className="bg-[#14181A] p-2.5 text-center">
-                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Ganho</div>
-                <div className="font-mono text-[14px] mt-0.5 text-[#7FA88C] font-bold">
-                  {totalOportunidades > 0 ? ((countGanho / totalOportunidades) * 100).toFixed(0) : '0'}%
-                </div>
-              </div>
-              <div className="bg-[#14181A] p-2.5 text-center">
-                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Perda</div>
-                <div className="font-mono text-[14px] mt-0.5 text-[#B5504B]">
-                  {totalOportunidades > 0 ? ((countPerdido / totalOportunidades) * 100).toFixed(0) : '0'}%
-                </div>
               </div>
             </div>
           </div>
