@@ -1342,55 +1342,78 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             )}
           </div>
 
-          {/* Pipeline de Vendas (Funil Comercial Horizontal) */}
-          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
+          {/* Pipeline de Vendas (Funil Comercial Horizontal com Destaque Accent Premium) */}
+          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between border-x border-[#C9A227]/20 relative shadow-[inset_0_0_20px_rgba(201,162,39,0.02)]">
+            {/* Linha de topo dourada para destacar o container no meio do grid */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#C9A227]/40 to-transparent"></div>
+
             <div>
-              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Pipeline de vendas (Funil)</h3>
-              <p className="text-xs text-[#7C868A] mt-1">Status das negociações do período</p>
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Pipeline de vendas (Funil)</h3>
+                <span className="text-[9px] font-mono font-bold text-[#C9A227] bg-[#C9A227]/10 border border-[#C9A227]/30 px-1.5 py-0.5 uppercase tracking-wide">
+                  Qualificação CRM
+                </span>
+              </div>
+              <p className="text-xs text-[#7C868A] mt-1">Status das negociações e conversão no período</p>
             </div>
             
-            {/* Visualização de Funil Comercial Geometrico */}
-            <div className="space-y-2.5 py-2">
-              {/* Estágio 1: Em Negociação (Topo do Funil - 100%) */}
+            {/* Visualização de Funil Comercial Geometrico com Gradients */}
+            <div className="space-y-3 py-1">
+              {/* Estágio 1: Em Negociação (Topo do Funil - 100% de largura) */}
               <div 
-                className="mx-auto bg-[#C9A227]/5 border border-[#C9A227]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#C9A227]/10"
+                className="mx-auto bg-gradient-to-r from-[#C9A227]/10 to-[#C9A227]/2 border border-[#C9A227]/25 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:from-[#C9A227]/15"
                 style={{ width: '100%' }}
               >
                 <div className="flex justify-between items-center z-10">
                   <span className="text-[9.5px] font-bold text-[#C9A227] uppercase tracking-wider">1. Em Negociação</span>
-                  <span className="text-[11px] font-mono font-bold text-white">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorNegociando)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-[#C9A227] font-mono">
+                      {totalOportunidades > 0 ? ((countNegociacao / totalOportunidades) * 100).toFixed(0) : '0'}%
+                    </span>
+                    <span className="text-[11.5px] font-mono font-bold text-white">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorNegociando)}
+                    </span>
+                  </div>
                 </div>
-                <div className="absolute left-0 bottom-0 h-0.5 bg-[#C9A227] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades * 100) : 0}%` }}></div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#C9A227] opacity-30" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades * 100) : 0}%` }}></div>
               </div>
 
-              {/* Estágio 2: Fechado Ganho (Meio do Funil - 85%) */}
+              {/* Estágio 2: Fechado Ganho (Meio do Funil - 85% de largura) */}
               <div 
-                className="mx-auto bg-[#7FA88C]/5 border border-[#7FA88C]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#7FA88C]/10"
+                className="mx-auto bg-gradient-to-r from-[#7FA88C]/10 to-[#7FA88C]/2 border border-[#7FA88C]/25 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:from-[#7FA88C]/15"
                 style={{ width: '85%' }}
               >
                 <div className="flex justify-between items-center z-10">
                   <span className="text-[9.5px] font-bold text-[#7FA88C] uppercase tracking-wider">2. Fechado Ganho</span>
-                  <span className="text-[11px] font-mono font-bold text-white">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorGanho)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-[#7FA88C] font-mono">
+                      {totalOportunidades > 0 ? ((countGanho / totalOportunidades) * 100).toFixed(0) : '0'}%
+                    </span>
+                    <span className="text-[11.5px] font-mono font-bold text-white">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorGanho)}
+                    </span>
+                  </div>
                 </div>
-                <div className="absolute left-0 bottom-0 h-0.5 bg-[#7FA88C] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countGanho / totalOportunidades * 100) : 0}%` }}></div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#7FA88C] opacity-30" style={{ width: `${totalOportunidades > 0 ? (countGanho / totalOportunidades * 100) : 0}%` }}></div>
               </div>
 
-              {/* Estágio 3: Fechado Perdido (Fundo do Funil - 70%) */}
+              {/* Estágio 3: Fechado Perdido (Fundo do Funil - 70% de largura) */}
               <div 
-                className="mx-auto bg-[#B5504B]/5 border border-[#B5504B]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#B5504B]/10"
+                className="mx-auto bg-gradient-to-r from-[#B5504B]/10 to-[#B5504B]/2 border border-[#B5504B]/25 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:from-[#B5504B]/15"
                 style={{ width: '70%' }}
               >
                 <div className="flex justify-between items-center z-10">
                   <span className="text-[9.5px] font-bold text-[#B5504B] uppercase tracking-wider">3. Fechado Perdido</span>
-                  <span className="text-[11px] font-mono font-bold text-white">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorPerdido)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-[#B5504B] font-mono">
+                      {totalOportunidades > 0 ? ((countPerdido / totalOportunidades) * 100).toFixed(0) : '0'}%
+                    </span>
+                    <span className="text-[11.5px] font-mono font-bold text-white">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorPerdido)}
+                    </span>
+                  </div>
                 </div>
-                <div className="absolute left-0 bottom-0 h-0.5 bg-[#B5504B] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countPerdido / totalOportunidades * 100) : 0}%` }}></div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#B5504B] opacity-30" style={{ width: `${totalOportunidades > 0 ? (countPerdido / totalOportunidades * 100) : 0}%` }}></div>
               </div>
             </div>
 
