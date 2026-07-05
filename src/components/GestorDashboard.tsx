@@ -139,6 +139,9 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
   // Seleção e modal de detalhes do cliente
   const [selectedClientDetails, setSelectedClientDetails] = useState<any | null>(null);
 
+  // Seleção e modal de detalhes da ação corretiva (PDCA 5W2H)
+  const [selectedAcaoDetails, setSelectedAcaoDetails] = useState<any | null>(null);
+
   // Métrica ativa para o gráfico de acompanhamento comercial
   const [activeKpiFilter, setActiveKpiFilter] = useState<'receita' | 'ticket' | 'saldo' | 'clientes' | 'roi'>('receita');
 
@@ -1888,12 +1891,12 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                 {/* Visualização Mobile: Lista de Cards Fluidos */}
                 <div className="md:hidden space-y-3.5">
                   {acoes.map((acao) => (
-                    <div key={acao.id} className="bg-[#0E1113] border border-[#23282B] p-4 space-y-3">
+                    <div key={acao.id} onClick={() => setSelectedAcaoDetails(acao)} className="bg-[#0E1113] border border-[#23282B] p-4 space-y-3 cursor-pointer hover:bg-[#1C2022] transition-all">
                       <div className="flex justify-between items-start gap-3">
                         <span className="font-bold text-white text-xs leading-relaxed">{acao.descricao}</span>
                         <button
                           id={`btn-toggle-action-mob-${acao.id}`}
-                          onClick={() => handleToggleActionStatus(acao.id, acao.status)}
+                          onClick={(e) => { e.stopPropagation(); handleToggleActionStatus(acao.id, acao.status); }}
                           className={`px-2.5 py-1 text-[9px] font-bold border transition-all rounded-none flex-shrink-0 ${
                             acao.status === 'concluida' 
                               ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]' 
@@ -1946,7 +1949,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                     </thead>
                     <tbody className="divide-y divide-[#23282B]/60 text-slate-300 font-medium">
                       {acoes.map((acao) => (
-                        <tr key={acao.id} className="hover:bg-[#0E1113] transition-colors">
+                        <tr key={acao.id} onClick={() => setSelectedAcaoDetails(acao)} className="hover:bg-[#1C2022] transition-colors cursor-pointer">
                           <td className="py-3 pr-2 text-white font-semibold leading-relaxed">{acao.descricao}</td>
                           <td className="py-3 px-2 text-slate-400 leading-normal max-w-[200px] truncate" title={acao.causa_raiz}>{acao.causa_raiz}</td>
                           <td className="py-3 px-2 font-semibold text-slate-200">{acao.responsavel}</td>
@@ -1961,7 +1964,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                           <td className="py-3 pl-2 text-center">
                             <button
                               id={`btn-toggle-action-${acao.id}`}
-                              onClick={() => handleToggleActionStatus(acao.id, acao.status)}
+                              onClick={(e) => { e.stopPropagation(); handleToggleActionStatus(acao.id, acao.status); }}
                               className={`px-2.5 py-1 text-[10px] font-bold border transition-all rounded-none ${
                                 acao.status === 'concluida' 
                                   ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]' 
@@ -2088,6 +2091,111 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           <span className="text-[10px] font-bold font-sans">Planos</span>
         </button>
       </div>
+
+      {/* Modal: Detalhes do Plano de Ação (5W2H) */}
+      {selectedAcaoDetails && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="w-full max-w-[500px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-5 animate-slide-up">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight uppercase">Plano de Ação Corretiva (5W2H)</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Código de Identificação: {selectedAcaoDetails.id.slice(0, 8)}...</p>
+              </div>
+              <button 
+                onClick={() => setSelectedAcaoDetails(null)} 
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* O Quê / Ação */}
+              <div className="space-y-1">
+                <span className="text-[9px] font-bold text-[#C9A227] uppercase tracking-wider font-mono">What (O quê / Ação)</span>
+                <p className="text-xs font-semibold text-white leading-relaxed bg-[#0E1113] p-3 border border-[#23282B]">
+                  {selectedAcaoDetails.descricao}
+                </p>
+              </div>
+
+              {/* Por Quê / Causa Raiz */}
+              <div className="space-y-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">Why (Por quê / Causa Raiz)</span>
+                <p className="text-xs text-slate-300 leading-relaxed bg-[#0E1113] p-3 border border-[#23282B]">
+                  {selectedAcaoDetails.causa_raiz || "Não especificada."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Quem / Responsável */}
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">Who (Quem / Responsável)</span>
+                  <div className="text-xs text-slate-300 font-semibold bg-[#0E1113] p-2.5 border border-[#23282B]">
+                    {selectedAcaoDetails.responsavel}
+                  </div>
+                </div>
+
+                {/* Quando / Prazo */}
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">When (Quando / Prazo)</span>
+                  <div className="text-xs font-mono text-slate-300 bg-[#0E1113] p-2.5 border border-[#23282B]">
+                    {(() => {
+                      if (!selectedAcaoDetails.prazo) return '-';
+                      const parts = selectedAcaoDetails.prazo.split('T')[0].split('-');
+                      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                      return selectedAcaoDetails.prazo;
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Atual */}
+              <div className="space-y-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">Status da Ação</span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-1 text-[10px] font-bold border rounded-none uppercase ${
+                    selectedAcaoDetails.status === 'concluida' 
+                      ? 'bg-[#7FA88C]/10 border-[#7FA88C]/20 text-[#7FA88C]' 
+                      : selectedAcaoDetails.status === 'em_andamento'
+                      ? 'bg-[#C9A227]/10 border-[#C9A227]/20 text-[#C9A227]'
+                      : 'bg-[#14181A] border-[#23282B] text-slate-400'
+                  }`}>
+                    {selectedAcaoDetails.status === 'concluida' ? 'Concluída' : selectedAcaoDetails.status === 'em_andamento' ? 'Em Andamento' : 'Planejada'}
+                  </span>
+                  
+                  {/* Alterar status dinamicamente */}
+                  <button
+                    onClick={async () => {
+                      const nextStatus = selectedAcaoDetails.status === 'planejada' 
+                        ? 'em_andamento' 
+                        : selectedAcaoDetails.status === 'em_andamento' 
+                        ? 'concluida' 
+                        : 'planejada';
+                      
+                      // Atualizar localmente
+                      setSelectedAcaoDetails({ ...selectedAcaoDetails, status: nextStatus });
+                      // Atualizar no banco de dados
+                      await handleToggleActionStatus(selectedAcaoDetails.id, selectedAcaoDetails.status);
+                    }}
+                    className="px-2 py-1 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[9px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider"
+                  >
+                    Alterar Status
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-800">
+              <button 
+                onClick={() => setSelectedAcaoDetails(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white uppercase tracking-wider"
+              >
+                Fechar Ficha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Editar Metas do Gestor */}
       {isGoalModalOpen && (
