@@ -1,4 +1,4 @@
-﻿# NovaPay — Painel de Performance Comercial
+# NovaPay — Painel de Performance Comercial
 
 > Painel de gestão financeira e comercial para a empresa fictícia NovaPay, desenvolvido como teste técnico para a vaga de Desenvolvedor(a) No-Code na IAplicada.
 
@@ -87,12 +87,17 @@ tarefas_vendedor→ checklist de atividades do vendedor
 
 Roda **todo dia às 9h** e verifica se a receita está abaixo de 70% da meta quando faltam ≤ 10 dias para o fim do mês.
 
-```
-[Cron: 9h diário]
-    → [HTTP POST] verificar_meta_mensal() no Supabase RPC
-    → [IF] alerta_disparado == true?
-        → SIM: [HTTP POST] Envia webhook de notificação
-        → NÃO: [NoOp] Sem alerta
+```mermaid
+graph TD
+    A[📅 Cron Trigger<br>Todo dia às 9h] --> B[🌐 HTTP Request RPC<br>verificar_meta_mensal]
+    B --> C{❓ Alerta Disparado?<br>receita < 70% & dias <= 10}
+    C -- Sim --> D[📢 HTTP POST Webhook<br>Notificação Externa]
+    C -- Não --> E[💾 NoOp<br>Log no Banco & Fim]
+    style A fill:#14181A,stroke:#23282B,stroke-width:1px,color:#fff
+    style B fill:#14181A,stroke:#23282B,stroke-width:1px,color:#fff
+    style C fill:#C9A22720,stroke:#C9A227,stroke-width:1px,color:#fff
+    style D fill:#B5504B20,stroke:#B5504B,stroke-width:1px,color:#fff
+    style E fill:#7FA88C20,stroke:#7FA88C,stroke-width:1px,color:#fff
 ```
 
 A function SQL registra o alerta em `public.alertas_meta` para auditoria e exibição no painel do gestor.
@@ -104,11 +109,17 @@ A function SQL registra o alerta em `public.alertas_meta` para auditoria e exibi
 
 Roda **todo domingo às 18h** e envia um e-mail HTML premium para o gestor com o resumo da semana.
 
-```
-[Cron: domingo 18h]
-    → [HTTP POST] gerar_relatorio_semanal() no Supabase RPC
-    → [Code] Monta template HTML estilizado com os dados
-    → [Send Email SMTP] Envia para gestor@novapay.com
+```mermaid
+graph TD
+    A[📅 Schedule Trigger<br>Todo Domingo às 18h] --> B[🌐 HTTP Request RPC<br>gerar_relatorio_semanal]
+    B --> C[💻 JavaScript Node<br>Monta Template HTML Premium]
+    C --> D[✉️ Send Email SMTP<br>Dispara para o Gestor]
+    D --> E[🏁 NoOp<br>Processo Concluído]
+    style A fill:#14181A,stroke:#23282B,stroke-width:1px,color:#fff
+    style B fill:#14181A,stroke:#23282B,stroke-width:1px,color:#fff
+    style C fill:#C9A22720,stroke:#C9A227,stroke-width:1px,color:#fff
+    style D fill:#7FA88C20,stroke:#7FA88C,stroke-width:1px,color:#fff
+    style E fill:#14181A,stroke:#23282B,stroke-width:1px,color:#fff
 ```
 
 **O e-mail contém:**
