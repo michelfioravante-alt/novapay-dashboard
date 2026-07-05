@@ -809,61 +809,46 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
     <div className="p-6 space-y-6 flex-1 flex flex-col pb-20 md:pb-6 w-full">
       {/* Barra de Filtros de Período e Andon Light */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#23282B] pb-4">
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="periods flex gap-6">
-            <button
-              id="filter-period-july"
-              onClick={() => setPeriod('2026-07')}
-              className={`text-xs font-semibold pb-2 transition-all border-b-2 ${
-                period === '2026-07' ? 'text-white border-[#C9A227]' : 'text-slate-500 border-transparent hover:text-slate-300'
-              }`}
-            >
-              Julho
-            </button>
-            <button
-              id="filter-period-june"
-              onClick={() => setPeriod('2026-06')}
-              className={`text-xs font-semibold pb-2 transition-all border-b-2 ${
-                period === '2026-06' ? 'text-white border-[#C9A227]' : 'text-slate-500 border-transparent hover:text-slate-300'
-              }`}
-            >
-              Junho
-            </button>
-            <button
-              id="filter-period-may"
-              onClick={() => setPeriod('2026-05')}
-              className={`text-xs font-semibold pb-2 transition-all border-b-2 ${
-                period === '2026-05' ? 'text-white border-[#C9A227]' : 'text-slate-500 border-transparent hover:text-slate-300'
-              }`}
-            >
-              Maio
-            </button>
-            <button
-              id="filter-period-q2"
-              onClick={() => setPeriod('Q2-2026')}
-              className={`text-xs font-semibold pb-2 transition-all border-b-2 ${
-                period === 'Q2-2026' ? 'text-white border-[#C9A227]' : 'text-slate-500 border-transparent hover:text-slate-300'
-              }`}
-            >
-              2º Trimestre
-            </button>
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Segmented Control de Período */}
+          <div className="flex p-0.5 bg-[#14181A] border border-[#23282B] rounded-none">
+            {[
+              { id: '2026-07', label: 'Julho' },
+              { id: '2026-06', label: 'Junho' },
+              { id: '2026-05', label: 'Maio' },
+              { id: 'Q2-2026', label: '2º Trimestre' }
+            ].map(p => (
+              <button
+                key={p.id}
+                id={`filter-period-${p.id}`}
+                onClick={() => setPeriod(p.id)}
+                className={`px-3 py-1.5 text-[10.5px] font-bold transition-all rounded-none ${
+                  period === p.id 
+                    ? 'bg-[#23282B] text-[#C9A227]' 
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
 
-          {/* Filtro por Vendedor */}
-          <div className="flex items-center bg-[#14181A] border border-[#23282B] px-2 py-0.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pr-2">Vendedor:</span>
-            <select
-              id="filter-vendedor-select"
-              value={selectedVendedorFilter}
-              onChange={(e) => setSelectedVendedorFilter(e.target.value)}
-              className="bg-[#14181A] text-xs font-semibold text-white py-1 focus:outline-none rounded-none border-none cursor-pointer"
-            >
-              <option value="todos" className="bg-[#0E1113] text-white">Todos os Vendedores</option>
-              {vendedores.filter(v => v.perfil === 'vendedor').map(v => (
-                <option key={v.id} value={v.id} className="bg-[#0E1113] text-white">{v.nome}</option>
-              ))}
-            </select>
-          </div>
+          {/* Badge Informativa de Filtro de Vendedor Ativo */}
+          {selectedVendedorFilter !== 'todos' && (
+            <div className="flex items-center gap-1.5 bg-[#C9A227]/5 border border-[#C9A227]/25 px-2 py-1 text-[10px] font-mono text-[#C9A227] animate-fadeIn">
+              <span className="font-bold uppercase tracking-wider">Filtro:</span>
+              <span className="text-white font-medium">
+                {vendedores.find(v => v.id === selectedVendedorFilter)?.nome || 'Vendedor'}
+              </span>
+              <button 
+                onClick={() => setSelectedVendedorFilter('todos')}
+                className="text-slate-500 hover:text-[#B5504B] transition-colors ml-0.5"
+                title="Limpar Filtro de Vendedor"
+              >
+                <X className="w-3 h-3 inline-block" />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 relative">
