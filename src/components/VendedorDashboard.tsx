@@ -1056,7 +1056,7 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="inline-block w-6 h-0.5 bg-[#C9A227] border-t border-dashed border-[#C9A227]"></span>
-                    Meta Mensal ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(metaIndividual)})
+                    Meta
                   </span>
                 </div>
               </div>
