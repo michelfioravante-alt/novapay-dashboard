@@ -925,9 +925,24 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
-          <div className="text-[10.5px] uppercase tracking-widest text-[#4A5256] font-medium hidden sm:block">
-            Sincronizado automaticamente
-          </div>
+
+          {/* Botões de Gestão */}
+          <button
+            id="btn-add-vendedor-modal"
+            onClick={() => setIsVendedorModalOpen(true)}
+            className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center gap-1.5"
+          >
+            <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
+          </button>
+          {period !== 'Q2-2026' && (
+            <button
+              id="btn-edit-goals"
+              onClick={openGoalModal}
+              className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center gap-1.5"
+            >
+              <Edit2 className="w-3.5 h-3.5" /> Editar Metas
+            </button>
+          )}
         </div>
       </div>
 
@@ -935,30 +950,10 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           GAUGE — Calibração de Faturamento vs Meta
           ========================================================================= */}
       <div className={mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}>
-        {/* Header da Gauge com botões de gestão */}
+        {/* Header da Gauge */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
           <div>
             <p className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] mb-1">Faturamento do período face à meta</p>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <button
-                  id="btn-add-vendedor-modal"
-                  onClick={() => setIsVendedorModalOpen(true)}
-                  className="flex-1 md:flex-none px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center justify-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
-                </button>
-                {period !== 'Q2-2026' && (
-                  <button
-                    id="btn-edit-goals"
-                    onClick={openGoalModal}
-                    className="flex-1 md:flex-none px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center justify-center gap-1.5"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" /> Editar Metas
-                  </button>
-                )}
-              </div>
-            </div>
           </div>
           <div className="flex flex-col items-end text-right flex-shrink-0">
             <div className="font-mono text-base font-bold text-white flex items-baseline gap-1.5 justify-end">
