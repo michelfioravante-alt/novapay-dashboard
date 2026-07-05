@@ -308,6 +308,11 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       return year === y && (sMonths[s] || []).includes(month);
     }
 
+    // Semestre Comercial Customizado: S-6M (Fev - Jul 2026)
+    if (period === 'S-6M') {
+      return year === '2026' && ['02', '03', '04', '05', '06', '07'].includes(month);
+    }
+
     // Formato YYYY-MM
     return `${year}-${month}` === period;
   }, [period]);
@@ -340,6 +345,9 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
         2: ['07','08','09','10','11','12']
       };
       return year === y && (sMonths[s] || []).includes(month);
+    }
+    if (period === 'S-6M') {
+      return year === '2026' && ['02', '03', '04', '05', '06', '07'].includes(month);
     }
     return `${year}-${month}` === period;
   });
@@ -794,7 +802,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
   // Salvar / Atualizar Metas
   const handleGoalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (/^[QS]\d-\d{4}$/.test(period)) return;
+    if (/^(S-6M|[QS]\d-\d{4})$/.test(period)) return;
 
     setSubmittingGoal(true);
     setGoalModalError(null);
@@ -932,7 +940,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           >
             <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
           </button>
-          {!/^[QS]\d-\d{4}$/.test(period) && (
+          {!/^(S-6M|[QS]\d-\d{4})$/.test(period) && (
             <button
               id="btn-edit-goals"
               onClick={openGoalModal}
@@ -1093,29 +1101,21 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                     onChange={(e) => setPeriod(e.target.value)}
                     className="appearance-none bg-[#C9A227]/5 border border-[#C9A227]/25 text-[#C9A227] hover:border-[#C9A227]/50 text-[9px] font-mono font-bold px-2 py-0.5 pr-5 uppercase tracking-wider rounded-none cursor-pointer focus:outline-none focus:ring-0"
                   >
-                    <optgroup label="Meses" className="bg-[#0E1113] text-white">
-                      {(() => {
-                        const opts = [];
-                        const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                        const now = new Date(2026, 6, 1);
-                        for (let i = 0; i < 18; i++) {
-                          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                          const y = d.getFullYear();
-                          const m = String(d.getMonth() + 1).padStart(2, '0');
-                          opts.push(<option key={`${y}-${m}`} value={`${y}-${m}`}>{monthNames[d.getMonth()]} {y}</option>);
-                        }
-                        return opts;
-                      })()}
+                    <optgroup label="Meses (Últimos 6 meses)" className="bg-[#0E1113] text-white">
+                      <option value="2026-07">Julho 2026</option>
+                      <option value="2026-06">Junho 2026</option>
+                      <option value="2026-05">Maio 2026</option>
+                      <option value="2026-04">Abril 2026</option>
+                      <option value="2026-03">Março 2026</option>
+                      <option value="2026-02">Fevereiro 2026</option>
                     </optgroup>
                     <optgroup label="Trimestres" className="bg-[#0E1113] text-white">
-                      {[2026,2025].flatMap(y => [4,3,2,1].map(q => (
-                        <option key={`Q${q}-${y}`} value={`Q${q}-${y}`}>{q}º Trimestre {y}</option>
-                      )))}
+                      <option value="Q2-2026">2º Trimestre 2026</option>
+                      <option value="Q1-2026">1º Trimestre 2026</option>
                     </optgroup>
                     <optgroup label="Semestres" className="bg-[#0E1113] text-white">
-                      {[2026,2025].flatMap(y => [2,1].map(s => (
-                        <option key={`S${s}-${y}`} value={`S${s}-${y}`}>{s}º Semestre {y}</option>
-                      )))}
+                      <option value="S-6M">Semestre Comercial (Fev-Jul 2026)</option>
+                      <option value="S1-2026">1º Semestre 2026 (Jan-Jun)</option>
                     </optgroup>
                   </select>
                   <span className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-[6px] text-[#C9A227] font-mono font-black">
