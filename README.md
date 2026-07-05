@@ -184,27 +184,28 @@ npm run dev
 ### Painel do Gestor
 - **5 KPIs clicáveis** (Receita, Ticket, Saldo, Clientes, ROI) que alteram o gráfico histórico
 - **Gráfico de 6 meses reativo** por métrica selecionada com linha de meta
-- **Filtro Contextual de Período**: Seleção discreta integrada no cabeçalho do gráfico (limitado ao histórico de 6 meses do escopo do teste, de Fev/2026 a Jul/2026), com consolidação por trimestre e semestre comercial (`S-6M`).
-- **Filtro Contextual de Vendedor**: Seleção embutida diretamente na legenda do gráfico para isolar métricas de um vendedor específico de forma limpa.
+- **Filtros Contextuais Integrados**: Períodos e vendedores selecionáveis diretamente na área do gráfico. Períodos limitados aos 6 meses do histórico (Fev-Jul 2026) e consolidados por trimestre e semestre comercial (`S-6M`).
 - **Ranking de Vendedores**: Leaderboard clássico com barra de progresso proporcional, faturamento ganho, perdido e conversão.
 - **Top 5 Clientes**: Tabela interativa com modal de detalhes e histórico completo de propostas.
-- **Análise de Motivos de Perda**: Diagnóstico com dicas do Kaizen/RevOps.
-- **Gestão de Equipe & Planejamento**: Cadastro de vendedores, edição de metas mensais corporativas e controle de despesas (custos operacionais e de infraestrutura do mês) salvos em tempo real no Supabase.
+- **Análise de Motivos de Perda**: Diagnóstico RevOps dos motivos de negativa.
+- **Quadro PDCA (5W2H) Interativo**: Ficha técnica rica e interativa ao clicar em qualquer linha de plano de ação, contendo botão interno para alternar status direto no banco. O cadastro rápido de ações traz agora um dropdown dinâmico com a lista de colaboradores reais do banco (campo "Quem").
+- **Menu de Configurações Consolidado**: Ícone de engrenagem responsivo que agrupa cadastro de novos vendedores, edição de metas mensais corporativas e controle de despesas (custos operacionais e de infraestrutura do mês) salvos no Supabase.
 
 ### Painel do Vendedor
 - Kanban drag-and-drop e modo lista com legenda dinâmica
 - Meta individual com barra de progresso e projeção do mês
 - Simulador de comissão interativo
-- Playbook dinâmico por tipo de negociação
+- Playbook dinâmico por tipo de negociação com checklists integrados
+- **🚨 Chamada Andon Manual**: Botão de solicitar suporte e auxílio operacional nas propostas em negociação, enviando um sinal em tempo real para a tela do gestor.
 - Checklist de atividades diárias
 
 ### Extras além do escopo pedido
 - **ROI da Operação** como KPI adicional
-- **Sistema de alertas internos (Andon)** para o gestor
+- **Exportação de CSV Brasileiro**: Relatório financeiro formatado para Excel nacional (delimitador `;`, decimais com vírgula e BOM UTF-8).
+- **Sistema de alertas internos (Andon)** para o gestor com WebSocket Realtime
 - **Edição de Custos e Despesas** integrada à tabela de transações do banco
+- **UX & Responsividade**: Fechamento automático de dropdowns ao clicar fora (click-outside backdrop) e popups responsivos adaptados para telas pequenas (no-overflow).
 - **Logo NovaPay** clicável reseta o dashboard ao estado inicial
-- **Dados em tempo real** via Supabase Realtime channels
-- **Dark mode nativo** com paleta de cores premium
 - **Workflow de automação** com function SQL e JSON n8n documentado
 
 ---
