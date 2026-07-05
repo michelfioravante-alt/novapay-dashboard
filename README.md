@@ -85,6 +85,8 @@ tarefas_vendedor→ checklist de atividades do vendedor
 ### Workflow 1 — Alerta de Meta
 **Arquivo:** [`n8n-workflow-alerta-meta.json`](./n8n-workflow-alerta-meta.json)
 
+![Interface do Workflow 1 no n8n](./n8n_workflow_screenshot.png)
+
 Roda **todo dia às 9h** e verifica se a receita está abaixo de 70% da meta quando faltam ≤ 10 dias para o fim do mês.
 
 ```mermaid
