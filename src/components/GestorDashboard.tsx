@@ -141,8 +141,8 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
         { data: resAlertas },
         { data: resAcoes }
       ] = await Promise.all([
-        supabase.from('vendas').select('*, vendedores(nome), clientes(nome)'),
-        supabase.from('transacoes').select('*, clientes(nome)'),
+        supabase.from('vendas').select('*, vendedores(nome), clientes(nome, segmento)'),
+        supabase.from('transacoes').select('*, clientes(nome, segmento)'),
         supabase.from('clientes').select('*'),
         supabase.from('vendedores').select('*'),
         supabase.from('metas').select('*'),
