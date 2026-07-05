@@ -1213,6 +1213,123 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             </div>
           </div>
 
+          {/* Pipeline de Vendas (Funil Comercial Horizontal) */}
+          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
+            <div>
+              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Pipeline de vendas (Funil)</h3>
+              <p className="text-xs text-[#7C868A] mt-1">Status das negociações do período</p>
+            </div>
+            
+            {/* Visualização de Funil Comercial Geometrico */}
+            <div className="space-y-2.5 py-2">
+              {/* Estágio 1: Em Negociação (Topo do Funil - 100%) */}
+              <div 
+                className="mx-auto bg-[#C9A227]/5 border border-[#C9A227]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#C9A227]/10"
+                style={{ width: '100%' }}
+              >
+                <div className="flex justify-between items-center z-10">
+                  <span className="text-[9.5px] font-bold text-[#C9A227] uppercase tracking-wider">1. Em Negociação</span>
+                  <span className="text-[11px] font-mono font-bold text-white">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorNegociando)}
+                  </span>
+                </div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#C9A227] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades * 100) : 0}%` }}></div>
+              </div>
+
+              {/* Estágio 2: Fechado Ganho (Meio do Funil - 85%) */}
+              <div 
+                className="mx-auto bg-[#7FA88C]/5 border border-[#7FA88C]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#7FA88C]/10"
+                style={{ width: '85%' }}
+              >
+                <div className="flex justify-between items-center z-10">
+                  <span className="text-[9.5px] font-bold text-[#7FA88C] uppercase tracking-wider">2. Fechado Ganho</span>
+                  <span className="text-[11px] font-mono font-bold text-white">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorGanho)}
+                  </span>
+                </div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#7FA88C] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countGanho / totalOportunidades * 100) : 0}%` }}></div>
+              </div>
+
+              {/* Estágio 3: Fechado Perdido (Fundo do Funil - 70%) */}
+              <div 
+                className="mx-auto bg-[#B5504B]/5 border border-[#B5504B]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#B5504B]/10"
+                style={{ width: '70%' }}
+              >
+                <div className="flex justify-between items-center z-10">
+                  <span className="text-[9.5px] font-bold text-[#B5504B] uppercase tracking-wider">3. Fechado Perdido</span>
+                  <span className="text-[11px] font-mono font-bold text-white">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorPerdido)}
+                  </span>
+                </div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#B5504B] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countPerdido / totalOportunidades * 100) : 0}%` }}></div>
+              </div>
+            </div>
+
+            {/* KPI Strip Informativo Simplificado */}
+            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B] mt-2">
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Negócios Totais</div>
+                <div className="font-mono text-[14px] mt-0.5 text-white">{totalOportunidades}</div>
+              </div>
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Ganho</div>
+                <div className="font-mono text-[14px] mt-0.5 text-[#7FA88C] font-bold">
+                  {totalOportunidades > 0 ? ((countGanho / totalOportunidades) * 100).toFixed(0) : '0'}%
+                </div>
+              </div>
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Perda</div>
+                <div className="font-mono text-[14px] mt-0.5 text-[#B5504B]">
+                  {totalOportunidades > 0 ? ((countPerdido / totalOportunidades) * 100).toFixed(0) : '0'}%
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabelas de Qualidade */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Clientes e ranking</span>
+          <div className="flex-1 h-px bg-[#23282B]"></div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-[#23282B] border border-[#23282B]">
+          {/* Top 5 Clientes por Faturamento */}
+          <div className="bg-[#14181A] p-6 space-y-4">
+            <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Top 5 clientes por faturamento</h3>
+            <p className="text-xs text-[#7C868A] -mt-2">Período corrente</p>
+            {top5Clientes.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse" style={{ fontSize: '12.5px' }}>
+                  <thead>
+                    <tr className="border-b border-[#23282B]">
+                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Cliente</th>
+                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Segmento</th>
+                      <th className="pb-2.5 text-right text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Faturamento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top5Clientes.map((client, index) => (
+                      <tr 
+                        key={index} 
+                        onClick={() => handleShowClientDetails(client)}
+                        className="border-b border-[#1A1F21] cursor-pointer hover:bg-[#1C2022] transition-colors"
+                      >
+                        <td className="py-3.5 pr-4 text-[#D8DEE1] font-medium">{client.nome}</td>
+                        <td className="py-3.5 px-4 text-[#4A5256]" style={{ fontSize: '11.5px' }}>{client.segmento}</td>
+                        <td className="py-3.5 text-right font-mono" style={{ fontSize: '12.5px' }}>
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(client.valor)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 py-6 text-center">Nenhuma transação comercial no período.</p>
+            )}
+          </div>
+
           {/* Ranking Comercial (Leaderboard Interativo Ganhos & Perdas) */}
           <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
             <div className="space-y-4">
@@ -1294,146 +1411,6 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
               <div className="bg-[#14181A] p-2.5 text-center">
                 <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Lead Time</div>
                 <div className="font-mono text-[15px] mt-0.5 text-slate-300">{leadTimeMedio.toFixed(0)}d</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabelas de Qualidade */}
-        <div className="flex items-center gap-3">
-          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Clientes e ranking</span>
-          <div className="flex-1 h-px bg-[#23282B]"></div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-[#23282B] border border-[#23282B]">
-          {/* Top 5 Clientes por Faturamento */}
-          <div className="bg-[#14181A] p-6 space-y-4">
-            <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Top 5 clientes por faturamento</h3>
-            <p className="text-xs text-[#7C868A] -mt-2">Período corrente</p>
-            {top5Clientes.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse" style={{ fontSize: '12.5px' }}>
-                  <thead>
-                    <tr className="border-b border-[#23282B]">
-                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Cliente</th>
-                      <th className="pb-2.5 text-left text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Segmento</th>
-                      <th className="pb-2.5 text-right text-[10.5px] uppercase tracking-[0.05em] text-[#4A5256] font-medium">Faturamento</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {top5Clientes.map((client, index) => (
-                      <tr 
-                        key={index} 
-                        onClick={() => handleShowClientDetails(client)}
-                        className="border-b border-[#1A1F21] cursor-pointer hover:bg-[#1C2022] transition-colors"
-                      >
-                        <td className="py-3.5 pr-4 text-[#D8DEE1] font-medium">{client.nome}</td>
-                        <td className="py-3.5 px-4 text-[#4A5256]" style={{ fontSize: '11.5px' }}>{client.segmento}</td>
-                        <td className="py-3.5 text-right font-mono" style={{ fontSize: '12.5px' }}>
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(client.valor)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500 py-6 text-center">Nenhuma transação comercial no período.</p>
-            )}
-          </div>
-
-          {/* Pipeline de Vendas (Funil Comercial Horizontal com Destaque Accent Premium) */}
-          <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between border-x border-[#C9A227]/20 relative shadow-[inset_0_0_20px_rgba(201,162,39,0.02)]">
-            {/* Linha de topo dourada para destacar o container no meio do grid */}
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#C9A227]/40 to-transparent"></div>
-
-            <div>
-              <div className="flex items-baseline justify-between">
-                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Pipeline de vendas (Funil)</h3>
-                <span className="text-[9px] font-mono font-bold text-[#C9A227] bg-[#C9A227]/10 border border-[#C9A227]/30 px-1.5 py-0.5 uppercase tracking-wide">
-                  Qualificação CRM
-                </span>
-              </div>
-              <p className="text-xs text-[#7C868A] mt-1">Status das negociações e conversão no período</p>
-            </div>
-            
-            {/* Visualização de Funil Comercial Geometrico com Gradients */}
-            <div className="space-y-3 py-1">
-              {/* Estágio 1: Em Negociação (Topo do Funil - 100% de largura) */}
-              <div 
-                className="mx-auto bg-gradient-to-r from-[#C9A227]/10 to-[#C9A227]/2 border border-[#C9A227]/25 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:from-[#C9A227]/15"
-                style={{ width: '100%' }}
-              >
-                <div className="flex justify-between items-center z-10">
-                  <span className="text-[9.5px] font-bold text-[#C9A227] uppercase tracking-wider">1. Em Negociação</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] text-[#C9A227] font-mono">
-                      {totalOportunidades > 0 ? ((countNegociacao / totalOportunidades) * 100).toFixed(0) : '0'}%
-                    </span>
-                    <span className="text-[11.5px] font-mono font-bold text-white">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorNegociando)}
-                    </span>
-                  </div>
-                </div>
-                <div className="absolute left-0 bottom-0 h-0.5 bg-[#C9A227] opacity-30" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades * 100) : 0}%` }}></div>
-              </div>
-
-              {/* Estágio 2: Fechado Ganho (Meio do Funil - 85% de largura) */}
-              <div 
-                className="mx-auto bg-gradient-to-r from-[#7FA88C]/10 to-[#7FA88C]/2 border border-[#7FA88C]/25 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:from-[#7FA88C]/15"
-                style={{ width: '85%' }}
-              >
-                <div className="flex justify-between items-center z-10">
-                  <span className="text-[9.5px] font-bold text-[#7FA88C] uppercase tracking-wider">2. Fechado Ganho</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] text-[#7FA88C] font-mono">
-                      {totalOportunidades > 0 ? ((countGanho / totalOportunidades) * 100).toFixed(0) : '0'}%
-                    </span>
-                    <span className="text-[11.5px] font-mono font-bold text-white">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorGanho)}
-                    </span>
-                  </div>
-                </div>
-                <div className="absolute left-0 bottom-0 h-0.5 bg-[#7FA88C] opacity-30" style={{ width: `${totalOportunidades > 0 ? (countGanho / totalOportunidades * 100) : 0}%` }}></div>
-              </div>
-
-              {/* Estágio 3: Fechado Perdido (Fundo do Funil - 70% de largura) */}
-              <div 
-                className="mx-auto bg-gradient-to-r from-[#B5504B]/10 to-[#B5504B]/2 border border-[#B5504B]/25 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:from-[#B5504B]/15"
-                style={{ width: '70%' }}
-              >
-                <div className="flex justify-between items-center z-10">
-                  <span className="text-[9.5px] font-bold text-[#B5504B] uppercase tracking-wider">3. Fechado Perdido</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] text-[#B5504B] font-mono">
-                      {totalOportunidades > 0 ? ((countPerdido / totalOportunidades) * 100).toFixed(0) : '0'}%
-                    </span>
-                    <span className="text-[11.5px] font-mono font-bold text-white">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorPerdido)}
-                    </span>
-                  </div>
-                </div>
-                <div className="absolute left-0 bottom-0 h-0.5 bg-[#B5504B] opacity-30" style={{ width: `${totalOportunidades > 0 ? (countPerdido / totalOportunidades * 100) : 0}%` }}></div>
-              </div>
-            </div>
-
-            {/* KPI Strip Informativo Simplificado */}
-            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B] mt-2">
-              <div className="bg-[#14181A] p-2.5 text-center">
-                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Negócios Totais</div>
-                <div className="font-mono text-[14px] mt-0.5 text-white">{totalOportunidades}</div>
-              </div>
-              <div className="bg-[#14181A] p-2.5 text-center">
-                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Ganho</div>
-                <div className="font-mono text-[14px] mt-0.5 text-[#7FA88C] font-bold">
-                  {totalOportunidades > 0 ? ((countGanho / totalOportunidades) * 100).toFixed(0) : '0'}%
-                </div>
-              </div>
-              <div className="bg-[#14181A] p-2.5 text-center">
-                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Perda</div>
-                <div className="font-mono text-[14px] mt-0.5 text-[#B5504B]">
-                  {totalOportunidades > 0 ? ((countPerdido / totalOportunidades) * 100).toFixed(0) : '0'}%
-                </div>
               </div>
             </div>
           </div>
