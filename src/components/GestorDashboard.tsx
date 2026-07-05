@@ -1007,12 +1007,18 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             </div>
           </div>
           {/* Ticks */}
-          <div className="flex justify-between items-center mt-1.5 flex-wrap gap-2">
-            <div className="flex gap-4">
-              {(['R$ 0', 'R$ 25K', 'R$ 50K', 'R$ 75K']).map(t => (
-                <span key={t} className="text-[10px] font-mono text-[#4A5256]">{t}</span>
-              ))}
-            </div>
+          {/* Ticks proporcionais e distribuídos uniformemente de 0% a 100% */}
+          <div className="flex justify-between items-center mt-2.5 font-mono text-[10px]">
+            <span className="text-[#4A5256]">R$ 0</span>
+            <span className="text-[#4A5256]">
+              {new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(metaReceita * 0.25)}
+            </span>
+            <span className="text-[#4A5256]">
+              {new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(metaReceita * 0.5)}
+            </span>
+            <span className="text-[#4A5256]">
+              {new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(metaReceita * 0.75)}
+            </span>
             <span className="text-[10px] font-mono font-bold text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-2 py-0.5 uppercase tracking-wider">
               Objetivo: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(metaReceita)}
             </span>
