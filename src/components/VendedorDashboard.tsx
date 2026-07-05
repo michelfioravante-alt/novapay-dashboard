@@ -6,7 +6,7 @@ import {
   Phone, Mail, UserCheck, TrendingUp
 } from 'lucide-react';
 import { 
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine 
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine 
 } from 'recharts';
 
 interface Vendedor {
@@ -1043,6 +1043,22 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
                   <TrendingUp className="w-4 h-4 text-brand-400" /> Evolução Comercial & Performance (Win vs Loss)
                 </h4>
                 <p className="text-[10px] text-slate-500 mt-0.5">Visão de faturamento ganho comparado a perdas e linha de meta nos últimos 6 meses</p>
+                
+                {/* Legenda HTML customizada e totalmente responsiva para telas pequenas */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-slate-400 font-mono mt-3.5 border-t border-[#1A1F21] pt-3">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 bg-[#7FA88C]"></span>
+                    Faturamento (Ganho)
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 bg-[#B5504B]"></span>
+                    Perdas (Perdido)
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-6 h-0.5 bg-[#C9A227] border-t border-dashed border-[#C9A227]"></span>
+                    Meta Mensal ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(metaIndividual)})
+                  </span>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-bold text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/15 px-2.5 py-1 font-mono">
@@ -1089,17 +1105,6 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
                     itemStyle={{ fontSize: 11, fontFamily: 'monospace' }} 
                     labelStyle={{ fontSize: 10, fontWeight: 'bold', color: '#ffffff', marginBottom: 4 }}
                     formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value)), '']}
-                  />
-                  <Legend 
-                    verticalAlign="top" 
-                    height={32} 
-                    iconType="square" 
-                    wrapperStyle={{ fontSize: 10 }} 
-                    payload={[
-                      { value: 'Faturamento (Ganho)', type: 'rect', id: 'ganho', color: '#7FA88C' },
-                      { value: 'Perdas (Perdido)', type: 'rect', id: 'perdido', color: '#B5504B' },
-                      { value: `Meta Mensal (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(metaIndividual)})`, type: 'line', id: 'meta', color: '#C9A227' }
-                    ]}
                   />
                   
                   {/* Linha Horizontal de Meta Mensal */}
