@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { 
   Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp,
-  Bell, Check, Settings
+  Bell, Check, Settings, Download
 } from 'lucide-react';
 
 interface ReadoutCardProps {
@@ -899,6 +899,61 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
     }
   };
 
+  // Exportar Relatório CSV compatível com Excel BR
+  const handleExportCSV = () => {
+    const transacoesExport = filteredTransacoes;
+
+    if (transacoesExport.length === 0) {
+      alert("Não há dados de transações disponíveis para exportação no período selecionado.");
+      return;
+    }
+
+    const headers = ["Data", "Tipo", "Categoria", "Valor (R$)", "Status", "Cliente", "Vendedor"];
+
+    const rows = transacoesExport.map(t => {
+      let dataFormatada = "";
+      if (t.data) {
+        const parts = t.data.split('T')[0].split('-');
+        if (parts.length === 3) {
+          dataFormatada = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        } else {
+          dataFormatada = t.data;
+        }
+      }
+
+      const valorBr = Number(t.valor).toFixed(2).replace('.', ',');
+      const clienteNome = t.clientes?.nome || 'Não especificado';
+      const vendedorNome = t.vendedor_nome || t.vendedores?.nome || 'Não atribuído';
+
+      return [
+        dataFormatada,
+        t.tipo === 'entrada' ? 'Entrada' : 'Saída',
+        t.categoria || 'Geral',
+        valorBr,
+        t.status === 'confirmada' ? 'Confirmado' : 'Pendente',
+        clienteNome,
+        vendedorNome
+      ];
+    });
+
+    const csvContent = "\ufeff" + [
+      headers.join(';'),
+      ...rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(';'))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    
+    const fileName = `relatorio_financeiro_novapay_${period}.csv`;
+    link.setAttribute("download", fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-12">
@@ -1017,7 +1072,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             </button>
 
             {showSettingsDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#14181A] border border-[#23282B] shadow-2xl z-50 rounded-none flex flex-col divide-y divide-[#1D2123]">
+              <div className="absolute right-0 mt-2 w-56 md:w-60 bg-[#14181A] border border-[#23282B] shadow-2xl z-50 rounded-none flex flex-col divide-y divide-[#1D2123]">
                 <button
                   onClick={() => {
                     setShowSettingsDropdown(false);
@@ -1054,6 +1109,16 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                     Metas e custos suspensos em períodos consolidados
                   </div>
                 )}
+
+                <button
+                  onClick={() => {
+                    setShowSettingsDropdown(false);
+                    handleExportCSV();
+                  }}
+                  className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#C9A227]" /> Exportar Relatório CSV
+                </button>
               </div>
             )}
           </div>
