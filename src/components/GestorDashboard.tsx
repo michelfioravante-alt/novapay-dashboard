@@ -278,8 +278,13 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
   const metaReceitaTotal = activeGoals.reduce((acc, m) => acc + Number(m.meta_receita), 0);
   const metaNovosClientesTotal = activeGoals.reduce((acc, m) => acc + m.meta_novos_clientes, 0);
 
-  const metaReceita = selectedVendedorFilter === 'todos' ? metaReceitaTotal : 25000.00;
-  const metaNovosClientes = selectedVendedorFilter === 'todos' ? metaNovosClientesTotal : 3;
+  const totalVendedoresCount = vendedores.length > 0 ? vendedores.length : 3;
+  const metaReceita = selectedVendedorFilter === 'todos' 
+    ? metaReceitaTotal 
+    : (metaReceitaTotal / totalVendedoresCount);
+  const metaNovosClientes = selectedVendedorFilter === 'todos' 
+    ? metaNovosClientesTotal 
+    : Math.round(metaNovosClientesTotal / totalVendedoresCount);
 
   // 2. Filtragem de Vendas no período (filtrando por vendedor se selecionado)
   const baseFilteredVendas = vendas.filter(v => isInPeriod(v.data_fechamento || v.data_abertura));
@@ -580,10 +585,12 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       const causaCadeia = whys.filter(w => w.trim() !== '').join(' -> ');
 
       // 1. Atualizar a venda com o motivo de perda detalhado (causa raiz)
-      await supabase
+      const { error: saleUpdateError } = await supabase
         .from('vendas')
         .update({ motivo_perda: causaCadeia })
         .eq('id', selectedVendaPerdida);
+
+      if (saleUpdateError) throw saleUpdateError;
 
       // 2. Inserir a Ação Corretiva no Plano de Ação 5W2H
       const { error: actionError } = await supabase
@@ -610,8 +617,9 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       
       // Recarregar dados
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao registrar Kaizen:', error);
+      alert(`Falha ao registrar a análise: ${error.message || 'Erro de conexão ou permissão.'}`);
     } finally {
       setSubmittingKaizen(false);
     }
@@ -645,8 +653,9 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       setNewActionWhy('');
 
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao registrar ação:', error);
+      alert(`Falha ao salvar a ação 5W2H: ${error.message || 'Erro de conexão ou permissão.'}`);
     } finally {
       setSubmittingAction(false);
     }
@@ -656,14 +665,16 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
   const handleToggleActionStatus = async (id: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'planejada' ? 'em_andamento' : currentStatus === 'em_andamento' ? 'concluida' : 'planejada';
     try {
-      await supabase
+      const { error } = await supabase
         .from('pdca_acoes')
         .update({ status: nextStatus })
         .eq('id', id);
       
+      if (error) throw error;
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao atualizar status da ação:', error);
+      alert(`Falha ao atualizar o status da ação: ${error.message || 'Erro de conexão ou permissão.'}`);
     }
   };
 

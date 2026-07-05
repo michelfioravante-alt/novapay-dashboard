@@ -45,6 +45,10 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
   // Estado do Filtro de Busca de Clientes
   const [crmSearch, setCrmSearch] = useState('');
   
+  // Estado das metas e time para cálculo dinâmico da meta individual
+  const [metaReceitaGlobal, setMetaReceitaGlobal] = useState(80000);
+  const [totalVendedores, setTotalVendedores] = useState(3);
+  
   // Controle de Modais / Formulários
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -190,10 +194,11 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
     try {
       setLoading(true);
       
-      // 1. Carregar vendas (Filtradas automaticamente pelo RLS no Supabase!)
+      // 1. Carregar vendas (Segurança Dupla: Filtro Frontend + RLS no Supabase!)
       const { data: salesData, error: salesError } = await supabase
         .from('vendas')
         .select('*, clientes(nome, segmento)')
+        .eq('vendedor_id', vendedor.id)
         .order('created_at', { ascending: false });
 
       if (salesError) throw salesError;
@@ -214,13 +219,35 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
       if (clientsError) throw clientsError;
       setClients(clientsData || []);
 
+      // 3. Buscar a meta de receita configurada mais recente
+      const today = new Date();
+      const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      const { data: metasData } = await supabase
+        .from('metas')
+        .select('meta_receita')
+        .gte('mes_referencia', `${currentMonthStr}-01`)
+        .lte('mes_referencia', `${currentMonthStr}-31`);
+
+      if (metasData && metasData.length > 0) {
+        setMetaReceitaGlobal(Number(metasData[0].meta_receita));
+      }
+
+      // 4. Buscar o total de vendedores ativos
+      const { count } = await supabase
+        .from('vendedores')
+        .select('*', { count: 'exact', head: true });
+
+      if (count) {
+        setTotalVendedores(count);
+      }
+
     } catch (err: any) {
       console.error('Erro ao carregar dados do vendedor:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [vendedor.id]);
+  }, [vendedor.id, selectedSaleForPlaybook]);
 
   useEffect(() => {
     loadData();
@@ -491,10 +518,12 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
   const handleDeleteSale = async (id: string) => {
     if (!confirm('Deseja excluir definitivamente esta oportunidade comercial?')) return;
     try {
-      await supabase.from('vendas').delete().eq('id', id);
+      const { error } = await supabase.from('vendas').delete().eq('id', id);
+      if (error) throw error;
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao deletar venda:', error);
+      alert(`Falha ao excluir a oportunidade comercial: ${error.message || 'Erro de permissão RLS ou conexão.'}`);
     }
   };
 
@@ -516,9 +545,8 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
   // Realizado Comercial Individual (Faturamento total de vendas ganhas no mês)
   const faturamentoRealizado = wonSalesThisMonth.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
 
-  // Meta Individual Mapeada (Usamos a meta de receita / número de vendedores ativos como simplificação de meta individual,
-  // ou definimos uma meta individual fixa padrão de R$ 25.000,00 para demonstração limpa)
-  const metaIndividual = 25000.00; 
+  // Meta Individual Proporcional (Meta Global / Quantidade de Vendedores ativos)
+  const metaIndividual = totalVendedores > 0 ? (metaReceitaGlobal / totalVendedores) : 25000.00; 
 
   // Comissão estimada: 5% sobre vendas ganhas no mês
   const comissaoEstimada = faturamentoRealizado * 0.05;
