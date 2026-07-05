@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { ArrowRight } from 'lucide-react';
 
@@ -204,7 +204,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         .bg-feed {
           position: absolute;
           inset: 0;
-          z-index: 1;
+          z-index: 2;
           display: flex;
           justify-content: space-evenly;
           mask-image: radial-gradient(ellipse 60% 55% at 50% 50%, transparent 20%, black 90%);
@@ -216,7 +216,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           font-size: 11px;
           line-height: 2.6;
           color: #7C868A;
-          opacity: 0.08;
+          opacity: 0.12;
           white-space: nowrap;
           will-change: transform;
           display: flex;
@@ -224,7 +224,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         }
         .bg-col.brass {
           color: #C9A227;
-          opacity: 0.13;
+          opacity: 0.18;
         }
         .bg-col span {
           display: block;
@@ -241,8 +241,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           right: -240px;
           width: 680px;
           height: 680px;
-          opacity: 0.35;
-          z-index: 1;
+          opacity: 0.55;
+          z-index: 2;
           pointer-events: none;
         }
 
@@ -250,10 +250,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         .ghost-metric {
           position: absolute;
           font-family: 'Space Mono', monospace;
-          opacity: 0.12;
+          opacity: 0.28;
           color: #7C868A;
           pointer-events: none;
-          z-index: 1;
+          z-index: 2;
         }
         .ghost-metric .g-label {
           font-family: 'Inter', sans-serif;
@@ -276,8 +276,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           left: 0;
           width: 100%;
           height: 38%;
-          opacity: 0.4;
-          z-index: 1;
+          opacity: 0.55;
+          z-index: 2;
           pointer-events: none;
         }
         .chart-line {
@@ -313,8 +313,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         .vignette {
           position: absolute;
           inset: 0;
-          background: radial-gradient(ellipse 65% 60% at 50% 50%, rgba(14,17,19,0.7) 15%, rgba(14,17,19,0.98) 85%);
-          z-index: 2;
+          background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(14,17,19,0.3) 10%, rgba(14,17,19,0.95) 90%);
+          z-index: 1;
           pointer-events: none;
         }
       `}</style>
