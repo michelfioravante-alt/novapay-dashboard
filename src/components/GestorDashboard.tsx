@@ -1078,17 +1078,38 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           {/* Gráfico de Evolução 6 Meses (Dinâmico com base no KPI ativo) */}
           <div className="bg-[#14181A] p-6 space-y-3">
             <div>
-              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1] flex items-center gap-2">
-                {activeKpiFilter === 'receita' && "Evolução de Receita & Perdas"}
-                {activeKpiFilter === 'ticket' && "Evolução de Ticket Médio"}
-                {activeKpiFilter === 'saldo' && "Evolução de Saldo Operacional"}
-                {activeKpiFilter === 'clientes' && "Acompanhamento de Novos Clientes"}
-                {activeKpiFilter === 'roi' && "Retorno sobre Investimento (ROI)"}
-                <span className="text-[9px] font-mono text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-1.5 py-0.5 uppercase tracking-wider font-bold">
-                  Histórico
+              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1] flex items-center justify-between gap-2 flex-wrap">
+                <span className="flex items-center gap-2">
+                  {activeKpiFilter === 'receita' && "Evolução de Receita & Perdas"}
+                  {activeKpiFilter === 'ticket' && "Evolução de Ticket Médio"}
+                  {activeKpiFilter === 'saldo' && "Evolução de Saldo Operacional"}
+                  {activeKpiFilter === 'clientes' && "Acompanhamento de Novos Clientes"}
+                  {activeKpiFilter === 'roi' && "Retorno sobre Investimento (ROI)"}
+                  <span className="text-[9px] font-mono text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-1.5 py-0.5 uppercase tracking-wider font-bold">
+                    Histórico
+                  </span>
                 </span>
               </h3>
-              <p className="text-xs text-[#7C868A] mt-1">Comparativo de performance comercial nos últimos 6 meses</p>
+              
+              {/* Legenda Dinâmica de Filtros Aplicados */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mt-2.5 text-[11px] text-slate-500 font-sans border-t border-[#1A1F21] pt-2.5">
+                <span className="text-slate-600">Visualizando:</span>
+                <span className={`font-mono text-[9px] uppercase font-bold px-1.5 py-0.5 border ${
+                  selectedVendedorFilter === 'todos'
+                    ? 'text-slate-400 bg-[#23282B] border-[#23282B]'
+                    : 'text-[#C9A227] bg-[#C9A227]/5 border-[#C9A227]/20'
+                }`}>
+                  {selectedVendedorFilter === 'todos' ? 'Todos os Vendedores' : (vendedores.find(v => v.id === selectedVendedorFilter)?.nome || 'Vendedor')}
+                </span>
+                <span className="text-[#23282B] font-mono">|</span>
+                <span className="text-slate-400 font-medium">
+                  {activeKpiFilter === 'receita' && "Curva de faturamento ganho comparado a perdas"}
+                  {activeKpiFilter === 'ticket' && "Média de faturamento por contrato ganho"}
+                  {activeKpiFilter === 'saldo' && "Diferença entre receitas e despesas confirmadas"}
+                  {activeKpiFilter === 'clientes' && "Contagem de novos clientes vs metas do período"}
+                  {activeKpiFilter === 'roi' && "Retorno percentual sobre as despesas de saídas"}
+                </span>
+              </div>
             </div>
             
             <div className="h-72 w-full text-xs">
