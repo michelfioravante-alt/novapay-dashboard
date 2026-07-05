@@ -1026,12 +1026,11 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       <div className={`space-y-8 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
         {/* Section label + Period tabs scrollable inline */}
         <div className="flex items-center gap-3">
-          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Resultados do período</span>
+          <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap flex-shrink-0">Resultados do período</span>
           <div
-            className="flex items-center gap-4 overflow-x-auto"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            className="flex-1 min-w-0 flex items-center gap-5 overflow-x-auto"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
           >
-            <style>{`.period-scroll::-webkit-scrollbar{display:none}`}</style>
             {(() => {
               const items: { id: string; label: string }[] = [];
               const now = new Date(2026, 6, 1); // Julho 2026
@@ -1079,8 +1078,11 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
               ));
             })()}
           </div>
-          <div className="flex-shrink-0 w-8 h-px bg-gradient-to-r from-[#23282B] to-transparent"></div>
         </div>
+
+
+
+
 
 
 
