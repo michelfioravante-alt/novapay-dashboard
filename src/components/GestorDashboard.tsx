@@ -283,14 +283,33 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
     if (parts.length < 2) return false;
     const year = parts[0];
     const month = parts[1];
-    
-    if (period === 'Q2-2026') {
-      // Q2 = Abril, Maio, Junho
-      return year === '2026' && ['04', '05', '06'].includes(month);
-    } else {
-      // Formato YYYY-MM
-      return `${year}-${month}` === period;
+
+    // Trimestre: Qn-YYYY
+    const qMatch = period.match(/^Q(\d)-([\d]{4})$/);
+    if (qMatch) {
+      const q = parseInt(qMatch[1]);
+      const y = qMatch[2];
+      const qMonths: Record<number, string[]> = {
+        1: ['01','02','03'], 2: ['04','05','06'],
+        3: ['07','08','09'], 4: ['10','11','12']
+      };
+      return year === y && (qMonths[q] || []).includes(month);
     }
+
+    // Semestre: S1-YYYY ou S2-YYYY
+    const sMatch = period.match(/^S(\d)-([\d]{4})$/);
+    if (sMatch) {
+      const s = parseInt(sMatch[1]);
+      const y = sMatch[2];
+      const sMonths: Record<number, string[]> = {
+        1: ['01','02','03','04','05','06'],
+        2: ['07','08','09','10','11','12']
+      };
+      return year === y && (sMonths[s] || []).includes(month);
+    }
+
+    // Formato YYYY-MM
+    return `${year}-${month}` === period;
   }, [period]);
 
   // 1. Filtragem das Metas do Período
@@ -301,8 +320,26 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
     if (parts.length < 2) return false;
     const year = parts[0];
     const month = parts[1];
-    if (period === 'Q2-2026') {
-      return year === '2026' && ['04', '05', '06'].includes(month);
+
+    const qMatch = period.match(/^Q(\d)-([\d]{4})$/);
+    if (qMatch) {
+      const q = parseInt(qMatch[1]);
+      const y = qMatch[2];
+      const qMonths: Record<number, string[]> = {
+        1: ['01','02','03'], 2: ['04','05','06'],
+        3: ['07','08','09'], 4: ['10','11','12']
+      };
+      return year === y && (qMonths[q] || []).includes(month);
+    }
+    const sMatch = period.match(/^S(\d)-([\d]{4})$/);
+    if (sMatch) {
+      const s = parseInt(sMatch[1]);
+      const y = sMatch[2];
+      const sMonths: Record<number, string[]> = {
+        1: ['01','02','03','04','05','06'],
+        2: ['07','08','09','10','11','12']
+      };
+      return year === y && (sMonths[s] || []).includes(month);
     }
     return `${year}-${month}` === period;
   });
@@ -757,7 +794,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
   // Salvar / Atualizar Metas
   const handleGoalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (period === 'Q2-2026') return;
+    if (/^[QS]\d-\d{4}$/.test(period)) return;
 
     setSubmittingGoal(true);
     setGoalModalError(null);
@@ -911,7 +948,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           >
             <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
           </button>
-          {period !== 'Q2-2026' && (
+          {!/^[QS]\d-\d{4}$/.test(period) && (
             <button
               id="btn-edit-goals"
               onClick={openGoalModal}
@@ -987,31 +1024,62 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           SEÇÃO RESULTADOS — KPIs
           ========================================================================= */}
       <div className={`space-y-8 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
-        {/* Section label + Period tabs inline */}
-        <div className="flex items-center gap-4">
+        {/* Section label + Period tabs scrollable inline */}
+        <div className="flex items-center gap-3">
           <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Resultados do período</span>
-          <div className="flex items-center gap-4">
-            {[
-              { id: '2026-07', label: 'Julho' },
-              { id: '2026-06', label: 'Junho' },
-              { id: '2026-05', label: 'Maio' },
-              { id: 'Q2-2026', label: '2º Tri' }
-            ].map(p => (
-              <button
-                key={p.id}
-                id={`filter-period-${p.id}`}
-                onClick={() => setPeriod(p.id)}
-                className={`text-[10.5px] font-semibold transition-colors pb-0.5 ${
-                  period === p.id
-                    ? 'text-[#C9A227] border-b border-[#C9A227]'
-                    : 'text-[#4A5256] hover:text-slate-400 border-b border-transparent'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+          <div
+            className="flex items-center gap-4 overflow-x-auto"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            <style>{`.period-scroll::-webkit-scrollbar{display:none}`}</style>
+            {(() => {
+              const items: { id: string; label: string }[] = [];
+              const now = new Date(2026, 6, 1); // Julho 2026
+              const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+              // Últimos 18 meses
+              for (let i = 0; i < 18; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                items.push({ id: `${y}-${m}`, label: `${monthNames[d.getMonth()]} ${y}` });
+              }
+
+              // Trimestres dos últimos 2 anos
+              for (let y = 2026; y >= 2025; y--) {
+                for (let q = 4; q >= 1; q--) {
+                  const id = `Q${q}-${y}`;
+                  if (!items.find(x => x.id === id))
+                    items.push({ id, label: `Q${q} ${y}` });
+                }
+              }
+
+              // Semestres
+              for (let y = 2026; y >= 2025; y--) {
+                for (let s = 2; s >= 1; s--) {
+                  const id = `S${s}-${y}`;
+                  if (!items.find(x => x.id === id))
+                    items.push({ id, label: `${s}ºSem ${y}` });
+                }
+              }
+
+              return items.map(p => (
+                <button
+                  key={p.id}
+                  id={`filter-period-${p.id}`}
+                  onClick={() => setPeriod(p.id)}
+                  className={`whitespace-nowrap text-[10.5px] font-semibold transition-colors pb-0.5 flex-shrink-0 ${
+                    period === p.id
+                      ? 'text-[#C9A227] border-b border-[#C9A227]'
+                      : 'text-[#4A5256] hover:text-slate-400 border-b border-transparent'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ));
+            })()}
           </div>
-          <div className="flex-1 h-px bg-[#23282B]"></div>
+          <div className="flex-shrink-0 w-8 h-px bg-gradient-to-r from-[#23282B] to-transparent"></div>
         </div>
 
 
