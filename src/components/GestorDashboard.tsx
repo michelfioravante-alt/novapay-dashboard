@@ -2035,15 +2035,20 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                 <div className="space-y-1">
                   <label htmlFor="new-action-who" className="text-[10px] font-bold text-slate-500 uppercase">Quem?</label>
-                  <input
+                  <select
                     id="new-action-who"
-                    type="text"
                     required
-                    placeholder="Responsável"
                     value={newActionWho}
                     onChange={(e) => setNewActionWho(e.target.value)}
                     className="w-full bg-[#14181A] border border-[#23282B] rounded-none px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-white"
-                  />
+                  >
+                    <option value="">Selecione o Responsável</option>
+                    {vendedores.map((v) => (
+                      <option key={v.id} value={v.nome} className="bg-[#0E1113] text-white">
+                        {v.nome} ({v.perfil === 'gestor' ? 'Gestor' : 'Vendedor'})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label htmlFor="new-action-when" className="text-[10px] font-bold text-slate-500 uppercase">Quando?</label>

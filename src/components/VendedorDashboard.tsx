@@ -84,6 +84,37 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
   const [submittingClient, setSubmittingClient] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
 
+  // Estado para solicitação de auxílio Andon
+  const [requestingAndon, setRequestingAndon] = useState(false);
+
+  const handleRequestAndonHelp = async () => {
+    if (!selectedSaleForDetail) return;
+    setRequestingAndon(true);
+    try {
+      const clientName = selectedSaleForDetail.clientes?.nome || 'Cliente Desconhecido';
+      const contractValueFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(selectedSaleForDetail.valor_contrato);
+      const mensagem = `Alerta de processo (Andon): ${vendedor.nome} solicitou auxílio para fechamento do lead ${clientName} (valor ${contractValueFormatted}).`;
+      
+      const { error } = await supabase
+        .from('alertas_andon')
+        .insert([
+          {
+            mensagem,
+            resolvido: false,
+            tipo: 'ajuda'
+          }
+        ]);
+        
+      if (error) throw error;
+      alert("Alerta Andon enviado ao Gestor com sucesso!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Erro ao acionar alerta Andon: " + err.message);
+    } finally {
+      setRequestingAndon(false);
+    }
+  };
+
   // Estados das Notas de CRM (Histórico de Follow-up)
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [selectedSaleForNotes, setSelectedSaleForNotes] = useState<any | null>(null);
@@ -1791,6 +1822,17 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
                     <div className="pt-2.5 border-t border-[#23282B]/60 space-y-1">
                       <span className="text-[9px] font-bold text-[#B5504B] uppercase">Motivo de Perda (Diagnóstico)</span>
                       <p className="text-[11.5px] text-slate-400 leading-relaxed font-sans">{selectedSaleForDetail.motivo_perda}</p>
+                    </div>
+                  )}
+                  {selectedSaleForDetail.status === 'em_negociacao' && (
+                    <div className="pt-3 border-t border-[#23282B]/60 flex justify-end">
+                      <button
+                        onClick={handleRequestAndonHelp}
+                        disabled={requestingAndon}
+                        className="px-3 py-1.5 bg-[#B5504B]/10 hover:bg-[#B5504B]/20 border border-[#B5504B]/30 text-[10px] font-bold text-[#B5504B] hover:text-white transition-all uppercase tracking-wider flex items-center gap-1.5"
+                      >
+                        🚨 {requestingAndon ? 'Acionando Andon...' : 'Solicitar Auxílio (Andon)'}
+                      </button>
                     </div>
                   )}
                 </div>
