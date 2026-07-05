@@ -1044,17 +1044,17 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
                 </h4>
                 <p className="text-[10px] text-slate-500 mt-0.5">Visão de faturamento ganho comparado a perdas e linha de meta nos últimos 6 meses</p>
                 
-                {/* Legenda HTML customizada, fluída e rolável horizontalmente no mobile */}
-                <div className="flex items-center gap-x-4 text-[10px] text-slate-400 font-mono mt-3.5 border-t border-[#1A1F21] pt-3 overflow-x-auto whitespace-nowrap scrollbar-none">
-                  <span className="flex items-center gap-1.5 flex-shrink-0">
+                {/* Legenda HTML customizada e totalmente responsiva para telas pequenas */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-slate-400 font-mono mt-3.5 border-t border-[#1A1F21] pt-3">
+                  <span className="flex items-center gap-1.5">
                     <span className="inline-block w-2 h-2 bg-[#7FA88C]"></span>
                     Faturamento (Ganho)
                   </span>
-                  <span className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="flex items-center gap-1.5">
                     <span className="inline-block w-2 h-2 bg-[#B5504B]"></span>
                     Perdas (Perdido)
                   </span>
-                  <span className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="flex items-center gap-1.5">
                     <span className="inline-block w-6 h-0.5 bg-[#C9A227] border-t border-dashed border-[#C9A227]"></span>
                     Meta Mensal ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(metaIndividual)})
                   </span>
@@ -1070,82 +1070,79 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
               </div>
             </div>
 
-            {/* Contêiner de rolagem horizontal para o gráfico no mobile para evitar esmagamento */}
-            <div className="w-full overflow-x-auto scrollbar-thin pb-2">
-              <div className="h-56 min-w-[560px] md:min-w-0 text-xs">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorGanho" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#7FA88C" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#7FA88C" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorPerdido" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#B5504B" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#B5504B" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#4A5256" 
-                      fontSize={10} 
-                      tickLine={false} 
-                      axisLine={false}
-                      className="font-mono"
-                    />
-                    <YAxis 
-                      stroke="#4A5256" 
-                      fontSize={10} 
-                      tickLine={false} 
-                      axisLine={false}
-                      className="font-mono"
-                      tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(val)}
-                    />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#0E1113', borderColor: '#23282B', borderRadius: 0 }} 
-                      itemStyle={{ fontSize: 11, fontFamily: 'monospace' }} 
-                      labelStyle={{ fontSize: 10, fontWeight: 'bold', color: '#ffffff', marginBottom: 4 }}
-                      formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value)), '']}
-                    />
-                    
-                    {/* Linha Horizontal de Meta Mensal */}
-                    <ReferenceLine 
-                      y={metaIndividual} 
-                      stroke="#C9A227" 
-                      strokeDasharray="4 4" 
-                      strokeWidth={1.5}
-                      label={{ 
-                        value: `META MENSAL: R$ ${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(metaIndividual)}`, 
-                        position: 'top', 
-                        fill: '#C9A227', 
-                        fontSize: 8.5, 
-                        fontWeight: 'bold',
-                        fontFamily: 'monospace'
-                      }} 
-                    />
-                    
-                    <Area 
-                      type="monotone" 
-                      dataKey="Vendas Ganhas" 
-                      name="Faturamento (Ganho)" 
-                      stroke="#7FA88C" 
-                      strokeWidth={2} 
-                      fillOpacity={1} 
-                      fill="url(#colorGanho)" 
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="Vendas Perdidas" 
-                      name="Perdas (Perdido)" 
-                      stroke="#B5504B" 
-                      strokeWidth={1.5} 
-                      fillOpacity={1} 
-                      fill="url(#colorPerdido)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="h-56 w-full text-xs">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorGanho" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#7FA88C" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#7FA88C" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorPerdido" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#B5504B" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="#B5504B" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#4A5256" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false}
+                    className="font-mono"
+                  />
+                  <YAxis 
+                    stroke="#4A5256" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false}
+                    className="font-mono"
+                    tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(val)}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#0E1113', borderColor: '#23282B', borderRadius: 0 }} 
+                    itemStyle={{ fontSize: 11, fontFamily: 'monospace' }} 
+                    labelStyle={{ fontSize: 10, fontWeight: 'bold', color: '#ffffff', marginBottom: 4 }}
+                    formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(value)), '']}
+                  />
+                  
+                  {/* Linha Horizontal de Meta Mensal */}
+                  <ReferenceLine 
+                    y={metaIndividual} 
+                    stroke="#C9A227" 
+                    strokeDasharray="4 4" 
+                    strokeWidth={1.5}
+                    label={{ 
+                      value: `META MENSAL: R$ ${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(metaIndividual)}`, 
+                      position: 'top', 
+                      fill: '#C9A227', 
+                      fontSize: 8.5, 
+                      fontWeight: 'bold',
+                      fontFamily: 'monospace'
+                    }} 
+                  />
+                  
+                  <Area 
+                    type="monotone" 
+                    dataKey="Vendas Ganhas" 
+                    name="Faturamento (Ganho)" 
+                    stroke="#7FA88C" 
+                    strokeWidth={2} 
+                    fillOpacity={1} 
+                    fill="url(#colorGanho)" 
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="Vendas Perdidas" 
+                    name="Perdas (Perdido)" 
+                    stroke="#B5504B" 
+                    strokeWidth={1.5} 
+                    fillOpacity={1} 
+                    fill="url(#colorPerdido)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
