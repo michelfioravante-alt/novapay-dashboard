@@ -127,6 +127,12 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
   const [submittingVendedor, setSubmittingVendedor] = useState(false);
   const [vendedorModalError, setVendedorModalError] = useState<string | null>(null);
 
+  // Estados de Custos Fixos & Infraestrutura (Gestor)
+  const [isCostModalOpen, setIsCostModalOpen] = useState(false);
+  const [inputCostInfra, setInputCostInfra] = useState('');
+  const [submittingCost, setSubmittingCost] = useState(false);
+  const [costModalError, setCostModalError] = useState<string | null>(null);
+
   // Seleção e modal de detalhes do cliente
   const [selectedClientDetails, setSelectedClientDetails] = useState<any | null>(null);
 
@@ -830,6 +836,66 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
     }
   };
 
+  // Abrir Modal de Custos
+  const openCostModal = () => {
+    const infraTrans = transacoes.find(t => 
+      t.tipo === 'saida' && 
+      t.categoria === 'infraestrutura' && 
+      t.data.startsWith(period)
+    );
+    setInputCostInfra(infraTrans ? infraTrans.valor.toString() : '0');
+    setCostModalError(null);
+    setIsCostModalOpen(true);
+  };
+
+  // Salvar / Atualizar Custos
+  const handleCostSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (/^(S-6M|[QS]\d-\d{4})$/.test(period)) return;
+
+    setSubmittingCost(true);
+    setCostModalError(null);
+
+    try {
+      const infraTrans = transacoes.find(t => 
+        t.tipo === 'saida' && 
+        t.categoria === 'infraestrutura' && 
+        t.data.startsWith(period)
+      );
+
+      if (infraTrans) {
+        const { error } = await supabase
+          .from('transacoes')
+          .update({ valor: parseFloat(inputCostInfra) })
+          .eq('id', infraTrans.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('transacoes')
+          .insert([
+            {
+              tipo: 'saida',
+              categoria: 'infraestrutura',
+              valor: parseFloat(inputCostInfra),
+              data: `${period}-01`,
+              status: 'confirmada'
+            }
+          ]);
+
+        if (error) throw error;
+      }
+
+      setIsCostModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      setCostModalError(err.message || 'Erro ao atualizar custos operacionais.');
+    } finally {
+      setSubmittingCost(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-12">
@@ -941,13 +1007,22 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
           </button>
           {!/^(S-6M|[QS]\d-\d{4})$/.test(period) && (
-            <button
-              id="btn-edit-goals"
-              onClick={openGoalModal}
-              className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center gap-1.5"
-            >
-              <Edit2 className="w-3.5 h-3.5" /> Editar Metas
-            </button>
+            <>
+              <button
+                id="btn-edit-goals"
+                onClick={openGoalModal}
+                className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center gap-1.5"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> Editar Metas
+              </button>
+              <button
+                id="btn-edit-costs"
+                onClick={openCostModal}
+                className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center gap-1.5"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> Custos
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1969,6 +2044,52 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                 className="w-full btn-primary py-2.5 text-xs mt-2"
               >
                 {submittingGoal ? 'Sincronizando...' : 'Salvar Metas'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Custos do Gestor */}
+      {isCostModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="w-full max-w-[450px] glass-panel border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Custos Operacionais & Infraestrutura</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Referência: {period}</p>
+              </div>
+              <button onClick={() => setIsCostModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
+            </div>
+
+            <form onSubmit={handleCostSubmit} className="space-y-4">
+              {costModalError && (
+                <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
+                  {costModalError}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label htmlFor="input-cost-infra" className="text-[10px] font-bold text-slate-400 uppercase">Custos Fixos & Infraestrutura (R$)</label>
+                <input
+                  id="input-cost-infra"
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="Ex: 12000.00"
+                  value={inputCostInfra}
+                  onChange={(e) => setInputCostInfra(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <button
+                id="btn-save-costs-submit"
+                type="submit"
+                disabled={submittingCost}
+                className="w-full btn-primary py-2.5 text-xs mt-2"
+              >
+                {submittingCost ? 'Sincronizando...' : 'Salvar Custos'}
               </button>
             </form>
           </div>
