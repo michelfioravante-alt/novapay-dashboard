@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ComposedChart, Bar, Line, Cell
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip
 } from 'recharts';
 import { 
   Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp,
@@ -1361,94 +1360,63 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             )}
           </div>
 
-          {/* Ranking Comercial (Gráfico de Pareto de Vendas) */}
+          {/* Ranking Comercial (Leaderboard de Vendedores) */}
           <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between lg:col-span-1">
-            <div className="space-y-4 flex-1 flex flex-col">
-              <div className="flex items-baseline justify-between flex-shrink-0">
-                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Análise de Pareto de Vendas</h3>
+            <div className="space-y-4">
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Ranking & Conversão</h3>
                 <span className="text-[9px] font-mono font-bold text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-1.5 py-0.5 uppercase tracking-wide">
                   Desempenho
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500 -mt-2 flex-shrink-0">
-                Faturamento individual vs. participação acumulada sobre as vendas totais
-              </p>
+              <p className="text-[10px] text-slate-500 -mt-2">Desempenho comercial e taxas de conversão dos vendedores no período</p>
 
-              {/* Gráfico Composed (Pareto) */}
-              <div className="h-64 w-full text-[10px] font-mono mt-2 flex-1 min-h-[220px]">
+              <div className="space-y-1">
                 {(() => {
-                  const sortedVendedores = [...rankingVendedores].sort((a, b) => b.ganho - a.ganho);
-                  const totalGanhosRanking = sortedVendedores.reduce((acc, v) => acc + v.ganho, 0);
-                  
-                  let acumulado = 0;
-                  const dataPareto = sortedVendedores.map(v => {
-                    acumulado += v.ganho;
-                    const pctAcumulada = totalGanhosRanking > 0 ? (acumulado / totalGanhosRanking) * 100 : 0;
-                    return {
-                      vendedor: v.nome.split(' ')[0], // Apenas primeiro nome
-                      "Valor Vendido": v.ganho,
-                      "Participação Acumulada": pctAcumulada
-                    };
-                  });
-
-                  if (totalGanhosRanking === 0) {
+                  const maxGanho = Math.max(...rankingVendedores.map(v => v.ganho), 1);
+                  return rankingVendedores.map((vend, index) => {
+                    const pctBarraLider = (vend.ganho / maxGanho) * 100;
+                    
                     return (
-                      <div className="h-full flex items-center justify-center text-slate-500 font-sans text-xs">
-                        Sem faturamento no período selecionado.
+                      <div 
+                        key={index} 
+                        className="flex flex-col py-2.5 px-3 border border-transparent text-[#D8DEE1]"
+                      >
+                        <div className="flex justify-between items-center gap-2">
+                          <div className="flex items-center gap-2 truncate">
+                            <span className={`font-mono text-[10px] w-4 ${
+                              index === 0 ? 'text-[#C9A227] font-bold' : 'text-[#4A5256]'
+                            }`}>{String(index + 1).padStart(2, '0')}</span>
+                            <div className="flex flex-col truncate">
+                              <span className="text-xs font-semibold text-white">{vend.nome}</span>
+                              <span className="text-[9.5px] text-slate-500 font-medium">
+                                Conv: {vend.conversao.toFixed(0)}% · {vend.totalNegocios} neg.
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col items-end text-right font-mono text-[11px] flex-shrink-0">
+                            <span className="text-[#7FA88C] font-bold">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.ganho)}
+                            </span>
+                            <span className="text-slate-500 text-[9.5px]">
+                              perdido {new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(vend.perdido)}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Barra Horizontal de Performance Comercial Proporcional ao Líder */}
+                        <div className="w-full mt-2">
+                          <div className="h-1.5 bg-[#0E1113] w-full flex border border-[#23282B]/20 relative overflow-hidden">
+                            <div 
+                              className="h-full bg-[#7FA88C]" 
+                              style={{ width: `${pctBarraLider}%` }}
+                            />
+                          </div>
+                        </div>
                       </div>
                     );
-                  }
-
-                  return (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={dataPareto} margin={{ top: 15, right: 10, left: -10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
-                        <XAxis dataKey="vendedor" stroke="#475569" tickLine={false} />
-                        <YAxis 
-                          yAxisId="left"
-                          stroke="#475569" 
-                          tickLine={false} 
-                          tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(val)} 
-                        />
-                        <YAxis 
-                          yAxisId="right"
-                          orientation="right"
-                          stroke="#475569" 
-                          tickLine={false} 
-                          domain={[0, 100]}
-                          tickFormatter={(val) => `${val}%`} 
-                        />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#0E1113', borderColor: '#23282B', borderRadius: 0 }} 
-                          itemStyle={{ fontSize: 11, fontFamily: 'monospace' }} 
-                          labelStyle={{ fontSize: 10.5, fontWeight: 'bold', color: '#fff', marginBottom: 4 }}
-                          formatter={(value: any, name: any) => {
-                            if (name === "Participação Acumulada") return [`${Number(value).toFixed(1)}%`, name];
-                            return [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value), name];
-                          }}
-                        />
-                        <Bar 
-                          yAxisId="left"
-                          dataKey="Valor Vendido" 
-                          barSize={20}
-                        >
-                          {dataPareto.map((_, idx) => {
-                            // Cores contrastantes e consistentes com a paleta comercial da NovaPay
-                            const colors = ['#7FA88C', '#B5504B', '#C9A227', '#8A9A86'];
-                            return <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />;
-                          })}
-                        </Bar>
-                        <Line 
-                          yAxisId="right"
-                          type="monotone" 
-                          dataKey="Participação Acumulada" 
-                          stroke="#C9A227" 
-                          strokeWidth={2}
-                          dot={{ fill: '#C9A227', r: 3 }}
-                        />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  );
+                  });
                 })()}
               </div>
             </div>
