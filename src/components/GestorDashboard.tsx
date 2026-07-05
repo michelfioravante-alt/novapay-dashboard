@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { 
   Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp,
-  Bell, Check
+  Bell, Check, Settings
 } from 'lucide-react';
 
 interface ReadoutCardProps {
@@ -119,6 +119,9 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
 
   // Popover de Notificações / Alertas operacionais
   const [showNotificationPopover, setShowNotificationPopover] = useState(false);
+
+  // Dropdown de Configurações / Ações de Gestão
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
 
   // Modal e Formulário de Cadastro de Novo Vendedor
   const [isVendedorModalOpen, setIsVendedorModalOpen] = useState(false);
@@ -947,7 +950,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
 
             {/* Dropdown de Alertas do Sino */}
             {showNotificationPopover && (
-              <div className="absolute right-0 mt-2 w-80 bg-[#14181A] border border-[#23282B] shadow-2xl p-4 z-50 rounded-none space-y-3">
+              <div className="fixed md:absolute inset-x-4 md:inset-x-auto md:right-0 mt-2 w-auto md:w-80 bg-[#14181A] border border-[#23282B] shadow-2xl p-4 z-50 rounded-none space-y-3 top-20 md:top-auto animate-fadeIn">
                 <div className="flex items-center justify-between border-b border-[#23282B] pb-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                     <AlertOctagon className="w-3.5 h-3.5 text-[#B5504B]" />
@@ -998,32 +1001,62 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
 
-          {/* Botões de Gestão */}
-          <button
-            id="btn-add-vendedor-modal"
-            onClick={() => setIsVendedorModalOpen(true)}
-            className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center gap-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" /> Cadastrar Vendedor
-          </button>
-          {!/^(S-6M|[QS]\d-\d{4})$/.test(period) && (
-            <>
-              <button
-                id="btn-edit-goals"
-                onClick={openGoalModal}
-                className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center gap-1.5"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> Editar Metas
-              </button>
-              <button
-                id="btn-edit-costs"
-                onClick={openCostModal}
-                className="px-3 py-1.5 bg-[#14181A] hover:bg-[#23282B] border border-[#23282B] text-[10px] font-bold text-[#C9A227] hover:text-white transition-all uppercase tracking-wider flex items-center gap-1.5"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> Custos
-              </button>
-            </>
-          )}
+          {/* Menu Dropdown de Configurações / Ações do Gestor */}
+          <div className="relative">
+            <button
+              id="btn-settings-dropdown"
+              onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}
+              className={`p-1.5 border transition-all flex items-center justify-center rounded-none ${
+                showSettingsDropdown
+                  ? 'bg-[#23282B] border-slate-600 text-white'
+                  : 'bg-[#14181A] border-[#23282B] text-slate-400 hover:text-white'
+              }`}
+              title="Configurações e Gestão"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+
+            {showSettingsDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-[#14181A] border border-[#23282B] shadow-2xl z-50 rounded-none flex flex-col divide-y divide-[#1D2123]">
+                <button
+                  onClick={() => {
+                    setShowSettingsDropdown(false);
+                    setIsVendedorModalOpen(true);
+                  }}
+                  className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
+                >
+                  <Plus className="w-3 h-3 text-[#C9A227]" /> Cadastrar Vendedor
+                </button>
+                
+                {!/^(S-6M|[QS]\d-\d{4})$/.test(period) ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowSettingsDropdown(false);
+                        openGoalModal();
+                      }}
+                      className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
+                    >
+                      <Edit2 className="w-3 h-3 text-[#C9A227]" /> Editar Metas
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowSettingsDropdown(false);
+                        openCostModal();
+                      }}
+                      className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
+                    >
+                      <Edit2 className="w-3 h-3 text-[#C9A227]" /> Editar Custos
+                    </button>
+                  </>
+                ) : (
+                  <div className="px-4 py-2.5 text-left text-[9.5px] font-medium text-slate-500 font-sans italic bg-[#0E1113]">
+                    Metas e custos suspensos em períodos consolidados
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
