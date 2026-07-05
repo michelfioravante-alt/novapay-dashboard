@@ -182,13 +182,14 @@ npm run dev
 ## 📸 Funcionalidades Implementadas
 
 ### Painel do Gestor
-- 5 KPIs clicáveis (Receita, Ticket, Saldo, Clientes, ROI) que alteram o gráfico histórico
-- Gráfico de 6 meses reativo por métrica selecionada com linha de meta
-- Ranking de vendedores com ganhos vs. perdas e taxa de conversão
-- Top 5 clientes clicáveis com modal de detalhes e histórico de propostas
-- Filtro por período (mensal / 2º trimestre) e por vendedor
-- Análise de motivos de perda com recomendações estratégicas
-- Cadastro de vendedores e edição de metas pelo gestor
+- **5 KPIs clicáveis** (Receita, Ticket, Saldo, Clientes, ROI) que alteram o gráfico histórico
+- **Gráfico de 6 meses reativo** por métrica selecionada com linha de meta
+- **Filtro Contextual de Período**: Seleção discreta integrada no cabeçalho do gráfico (limitado ao histórico de 6 meses do escopo do teste, de Fev/2026 a Jul/2026), com consolidação por trimestre e semestre comercial (`S-6M`).
+- **Filtro Contextual de Vendedor**: Seleção embutida diretamente na legenda do gráfico para isolar métricas de um vendedor específico de forma limpa.
+- **Ranking de Vendedores**: Leaderboard clássico com barra de progresso proporcional, faturamento ganho, perdido e conversão.
+- **Top 5 Clientes**: Tabela interativa com modal de detalhes e histórico completo de propostas.
+- **Análise de Motivos de Perda**: Diagnóstico com dicas do Kaizen/RevOps.
+- **Gestão de Equipe & Planejamento**: Cadastro de vendedores, edição de metas mensais corporativas e controle de despesas (custos operacionais e de infraestrutura do mês) salvos em tempo real no Supabase.
 
 ### Painel do Vendedor
 - Kanban drag-and-drop e modo lista com legenda dinâmica
@@ -198,12 +199,13 @@ npm run dev
 - Checklist de atividades diárias
 
 ### Extras além do escopo pedido
-- ROI da Operação como KPI adicional
-- Sistema de alertas internos (Andon) para o gestor
-- Logo NovaPay clicável reseta o dashboard ao estado inicial
-- Dados em tempo real via Supabase Realtime channels
-- Dark mode nativo com paleta de cores premium
-- Workflow de automação com function SQL e JSON n8n documentado
+- **ROI da Operação** como KPI adicional
+- **Sistema de alertas internos (Andon)** para o gestor
+- **Edição de Custos e Despesas** integrada à tabela de transações do banco
+- **Logo NovaPay** clicável reseta o dashboard ao estado inicial
+- **Dados em tempo real** via Supabase Realtime channels
+- **Dark mode nativo** com paleta de cores premium
+- **Workflow de automação** com function SQL e JSON n8n documentado
 
 ---
 
