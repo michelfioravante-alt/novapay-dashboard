@@ -975,11 +975,17 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
               </div>
             </div>
           </div>
-          <div className="text-xs text-[#B5504B] flex items-center gap-1.5 flex-shrink-0">
-            <span className="w-2 h-2 bg-[#B5504B] inline-block"></span>
+          <div className="flex flex-col items-end text-right flex-shrink-0">
+            <div className="font-mono text-base font-bold text-white flex items-baseline gap-1.5 justify-end">
+              <span className="text-2xl font-black">{pctReceita.toFixed(1)}%</span>
+              <span className="text-xs text-slate-500">de</span>
+              <span className="text-sm font-bold text-[#C9A227] tracking-wider">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(metaReceita)}
+              </span>
+            </div>
             {metaReceita > 0 && (
-              <span>
-                {(metaReceita > 0 ? ((metaReceita - totalEntradas) / metaReceita * 100) : 0).toFixed(0)}% restante · {pctReceita < 70 ? 'abaixo do limiar de segurança' : pctReceita >= 100 ? 'meta atingida' : 'dentro da zona de atenção'}
+              <span className="text-[10px] text-slate-500 block mt-0.5 font-mono">
+                {pctReceita >= 100 ? 'meta atingida' : `${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(metaReceita - totalEntradas)} restante`} · {pctReceita < 70 ? 'abaixo do limiar' : pctReceita >= 100 ? 'meta alcançada' : 'zona de atenção'}
               </span>
             )}
           </div>
@@ -1001,12 +1007,15 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             </div>
           </div>
           {/* Ticks */}
-          <div className="flex justify-between mt-1.5">
-            {(['R$ 0', 'R$ 25K', 'R$ 50K', 'R$ 75K',
-              `${new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(metaReceita)} — meta`
-            ]).map(t => (
-              <span key={t} className="text-[10px] font-mono text-[#4A5256]">{t}</span>
-            ))}
+          <div className="flex justify-between items-center mt-1.5 flex-wrap gap-2">
+            <div className="flex gap-4">
+              {(['R$ 0', 'R$ 25K', 'R$ 50K', 'R$ 75K']).map(t => (
+                <span key={t} className="text-[10px] font-mono text-[#4A5256]">{t}</span>
+              ))}
+            </div>
+            <span className="text-[10px] font-mono font-bold text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-2 py-0.5 uppercase tracking-wider">
+              Objetivo: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(metaReceita)}
+            </span>
           </div>
         </div>
       </div>
