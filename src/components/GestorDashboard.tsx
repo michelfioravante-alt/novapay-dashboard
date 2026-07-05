@@ -1008,45 +1008,51 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
 
             {/* Dropdown de Alertas do Sino */}
             {showNotificationPopover && (
-              <div className="fixed md:absolute inset-x-4 md:inset-x-auto md:right-0 mt-2 w-auto md:w-80 bg-[#14181A] border border-[#23282B] shadow-2xl p-4 z-50 rounded-none space-y-3 top-20 md:top-auto animate-fadeIn">
-                <div className="flex items-center justify-between border-b border-[#23282B] pb-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <AlertOctagon className="w-3.5 h-3.5 text-[#B5504B]" />
-                    Desvios Comerciais ({alertas.filter(a => !a.resolvido).length})
-                  </span>
-                  <button 
-                    onClick={() => setShowNotificationPopover(false)}
-                    className="text-slate-500 hover:text-white text-xs"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                
-                <div className="max-h-64 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
-                  {alertas.filter(a => !a.resolvido).length === 0 ? (
-                    <p className="text-xs text-slate-500 text-center py-4 font-mono">Sem desvios comerciais ativos.</p>
-                  ) : (
-                    alertas.filter(a => !a.resolvido).map(alerta => (
-                      <div key={alerta.id} className="text-[11px] bg-[#0E1113] border border-[#23282B] p-2.5 space-y-2">
-                        <div className="text-slate-300 font-sans leading-normal">
-                          {alerta.mensagem}
+              <>
+                <div 
+                  className="fixed inset-0 z-40 bg-transparent cursor-default" 
+                  onClick={() => setShowNotificationPopover(false)}
+                />
+                <div className="fixed md:absolute inset-x-4 md:inset-x-auto md:right-0 mt-2 w-auto md:w-80 bg-[#14181A] border border-[#23282B] shadow-2xl p-4 z-50 rounded-none space-y-3 top-20 md:top-auto animate-fadeIn">
+                  <div className="flex items-center justify-between border-b border-[#23282B] pb-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertOctagon className="w-3.5 h-3.5 text-[#B5504B]" />
+                      Desvios Comerciais ({alertas.filter(a => !a.resolvido).length})
+                    </span>
+                    <button 
+                      onClick={() => setShowNotificationPopover(false)}
+                      className="text-slate-500 hover:text-white text-xs"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  
+                  <div className="max-h-64 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
+                    {alertas.filter(a => !a.resolvido).length === 0 ? (
+                      <p className="text-xs text-slate-500 text-center py-4 font-mono">Sem desvios comerciais ativos.</p>
+                    ) : (
+                      alertas.filter(a => !a.resolvido).map(alerta => (
+                        <div key={alerta.id} className="text-[11px] bg-[#0E1113] border border-[#23282B] p-2.5 space-y-2">
+                          <div className="text-slate-300 font-sans leading-normal">
+                            {alerta.mensagem}
+                          </div>
+                          <div className="flex items-center justify-between pt-1 border-t border-[#1D2123]">
+                            <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 bg-[#B5504B]/10 text-[#B5504B] font-mono">
+                              Crítico
+                            </span>
+                            <button
+                              onClick={() => handleResolveAlerta(alerta.id)}
+                              className="text-[9px] font-bold text-slate-400 hover:text-white flex items-center gap-1 transition-colors uppercase font-mono"
+                            >
+                              <Check className="w-3 h-3 text-[#7FA88C]" /> Arquivar
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between pt-1 border-t border-[#1D2123]">
-                          <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 bg-[#B5504B]/10 text-[#B5504B] font-mono">
-                            Crítico
-                          </span>
-                          <button
-                            onClick={() => handleResolveAlerta(alerta.id)}
-                            className="text-[9px] font-bold text-slate-400 hover:text-white flex items-center gap-1 transition-colors uppercase font-mono"
-                          >
-                            <Check className="w-3 h-3 text-[#7FA88C]" /> Arquivar
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
@@ -1075,54 +1081,60 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             </button>
 
             {showSettingsDropdown && (
-              <div className="fixed md:absolute inset-x-4 md:inset-x-auto md:right-0 mt-2 w-auto md:w-60 bg-[#14181A] border border-[#23282B] shadow-2xl z-50 rounded-none flex flex-col divide-y divide-[#1D2123] top-24 md:top-auto animate-fadeIn">
-                <button
-                  onClick={() => {
-                    setShowSettingsDropdown(false);
-                    setIsVendedorModalOpen(true);
-                  }}
-                  className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
-                >
-                  <Plus className="w-3 h-3 text-[#C9A227]" /> Cadastrar Vendedor
-                </button>
-                
-                {!/^(S-6M|[QS]\d-\d{4})$/.test(period) ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        setShowSettingsDropdown(false);
-                        openGoalModal();
-                      }}
-                      className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
-                    >
-                      <Edit2 className="w-3 h-3 text-[#C9A227]" /> Editar Metas
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowSettingsDropdown(false);
-                        openCostModal();
-                      }}
-                      className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
-                    >
-                      <Edit2 className="w-3 h-3 text-[#C9A227]" /> Editar Custos
-                    </button>
-                  </>
-                ) : (
-                  <div className="px-4 py-2.5 text-left text-[9.5px] font-medium text-slate-500 font-sans italic bg-[#0E1113]">
-                    Metas e custos suspensos em períodos consolidados
-                  </div>
-                )}
+              <>
+                <div 
+                  className="fixed inset-0 z-40 bg-transparent cursor-default" 
+                  onClick={() => setShowSettingsDropdown(false)}
+                />
+                <div className="fixed md:absolute inset-x-4 md:inset-x-auto md:right-0 mt-2 w-auto md:w-60 bg-[#14181A] border border-[#23282B] shadow-2xl z-50 rounded-none flex flex-col divide-y divide-[#1D2123] top-24 md:top-auto animate-fadeIn">
+                  <button
+                    onClick={() => {
+                      setShowSettingsDropdown(false);
+                      setIsVendedorModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
+                  >
+                    <Plus className="w-3 h-3 text-[#C9A227]" /> Cadastrar Vendedor
+                  </button>
+                  
+                  {!/^(S-6M|[QS]\d-\d{4})$/.test(period) ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowSettingsDropdown(false);
+                          openGoalModal();
+                        }}
+                        className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
+                      >
+                        <Edit2 className="w-3 h-3 text-[#C9A227]" /> Editar Metas
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowSettingsDropdown(false);
+                          openCostModal();
+                        }}
+                        className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
+                      >
+                        <Edit2 className="w-3 h-3 text-[#C9A227]" /> Editar Custos
+                      </button>
+                    </>
+                  ) : (
+                    <div className="px-4 py-2.5 text-left text-[9.5px] font-medium text-slate-500 font-sans italic bg-[#0E1113]">
+                      Metas e custos suspensos em períodos consolidados
+                    </div>
+                  )}
 
-                <button
-                  onClick={() => {
-                    setShowSettingsDropdown(false);
-                    handleExportCSV();
-                  }}
-                  className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
-                >
-                  <Download className="w-3.5 h-3.5 text-[#C9A227]" /> Exportar Relatório CSV
-                </button>
-              </div>
+                  <button
+                    onClick={() => {
+                      setShowSettingsDropdown(false);
+                      handleExportCSV();
+                    }}
+                    className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-300 hover:text-[#C9A227] hover:bg-[#1C2022] transition-all uppercase tracking-wider flex items-center gap-2"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#C9A227]" /> Exportar Relatório CSV
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
