@@ -853,7 +853,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
               className="bg-[#14181A] text-xs font-semibold text-white py-1 focus:outline-none rounded-none border-none cursor-pointer"
             >
               <option value="todos" className="bg-[#0E1113] text-white">Todos os Vendedores</option>
-              {vendedores.map(v => (
+              {vendedores.filter(v => v.perfil === 'vendedor').map(v => (
                 <option key={v.id} value={v.id} className="bg-[#0E1113] text-white">{v.nome}</option>
               ))}
             </select>
