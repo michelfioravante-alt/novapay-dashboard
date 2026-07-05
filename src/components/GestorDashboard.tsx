@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ReferenceLine
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip
 } from 'recharts';
 import { 
   Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp,
@@ -547,6 +546,11 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
     const roiVal = sai > 0 ? (saldoVal / sai) * 100 : 0;
     const novosClientesVal = ganhoVendasCount;
 
+    // Buscar meta histórica desse mês correspondente
+    const metaDoMesObj = metas.find(meta => meta.mes_referencia && meta.mes_referencia.startsWith(m));
+    const metaReceitaHist = metaDoMesObj ? Number(metaDoMesObj.meta_receita) : 0;
+    const metaClientesHist = metaDoMesObj ? Number(metaDoMesObj.meta_novos_clientes) : 0;
+
     // Traduz o mês para exibição
     const [_, mesNum] = m.split('-');
     const nomesMeses: { [key: string]: string } = {
@@ -561,7 +565,9 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       PerdidoVendas: perdidoVendas,
       TicketMedio: ticketMedioVal,
       ROI: roiVal,
-      NovosClientes: novosClientesVal
+      NovosClientes: novosClientesVal,
+      MetaReceita: selectedVendedorFilter === 'todos' ? metaReceitaHist : (metaReceitaHist / totalVendedoresCount),
+      MetaClientes: selectedVendedorFilter === 'todos' ? metaClientesHist : Math.round(metaClientesHist / totalVendedoresCount)
     };
   });
 
@@ -1162,9 +1168,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                     <>
                       <Area type="monotone" dataKey="Faturamento" name="Faturamento Ganho" stroke="#7FA88C" strokeWidth={2} fillOpacity={1} fill="url(#colorGreen)" />
                       <Area type="monotone" dataKey="PerdidoVendas" name="Faturamento Perdido" stroke="#B5504B" strokeWidth={1.5} fillOpacity={1} fill="url(#colorRed)" />
-                      {metaReceita > 0 && (
-                        <ReferenceLine y={metaReceita} stroke="#C9A227" strokeDasharray="4 4" label={{ value: 'Meta Receita', fill: '#C9A227', fontSize: 9, position: 'top' }} />
-                      )}
+                      <Area type="monotone" dataKey="MetaReceita" name="Meta Faturamento" stroke="#C9A227" strokeWidth={1.5} strokeDasharray="4 4" fill="none" />
                     </>
                   )}
 
@@ -1182,9 +1186,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                   {activeKpiFilter === 'clientes' && (
                     <>
                       <Area type="monotone" dataKey="NovosClientes" name="Novos Clientes" stroke="#7FA88C" strokeWidth={2} fillOpacity={1} fill="url(#colorGreen)" />
-                      {metaNovosClientes > 0 && (
-                        <ReferenceLine y={metaNovosClientes} stroke="#C9A227" strokeDasharray="4 4" label={{ value: 'Meta Clientes', fill: '#C9A227', fontSize: 9, position: 'top' }} />
-                      )}
+                      <Area type="monotone" dataKey="MetaClientes" name="Meta Novos Clientes" stroke="#C9A227" strokeWidth={1.5} strokeDasharray="4 4" fill="none" />
                     </>
                   )}
 
@@ -1213,7 +1215,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                 <div className="flex justify-between items-center z-10">
                   <span className="text-[9.5px] font-bold text-[#C9A227] uppercase tracking-wider">1. Em Negociação</span>
                   <span className="text-[11px] font-mono font-bold text-white">
-                    {countNegociacao} neg. · {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorNegociando)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorNegociando)}
                   </span>
                 </div>
                 <div className="absolute left-0 bottom-0 h-0.5 bg-[#C9A227] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades * 100) : 0}%` }}></div>
@@ -1227,7 +1229,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                 <div className="flex justify-between items-center z-10">
                   <span className="text-[9.5px] font-bold text-[#7FA88C] uppercase tracking-wider">2. Fechado Ganho</span>
                   <span className="text-[11px] font-mono font-bold text-white">
-                    {countGanho} neg. · {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorGanho)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorGanho)}
                   </span>
                 </div>
                 <div className="absolute left-0 bottom-0 h-0.5 bg-[#7FA88C] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countGanho / totalOportunidades * 100) : 0}%` }}></div>
@@ -1241,7 +1243,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                 <div className="flex justify-between items-center z-10">
                   <span className="text-[9.5px] font-bold text-[#B5504B] uppercase tracking-wider">3. Fechado Perdido</span>
                   <span className="text-[11px] font-mono font-bold text-white">
-                    {countPerdido} neg. · {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorPerdido)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorPerdido)}
                   </span>
                 </div>
                 <div className="absolute left-0 bottom-0 h-0.5 bg-[#B5504B] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countPerdido / totalOportunidades * 100) : 0}%` }}></div>
