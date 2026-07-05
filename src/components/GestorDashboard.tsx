@@ -5,7 +5,8 @@ import {
   Cell, PieChart, Pie, ReferenceLine
 } from 'recharts';
 import { 
-  Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp
+  Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp,
+  Bell, Check
 } from 'lucide-react';
 
 interface ReadoutCardProps {
@@ -87,6 +88,9 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
 
   // Filtro de Vendedor
   const [selectedVendedorFilter, setSelectedVendedorFilter] = useState<string>('todos');
+
+  // Popover de Notificações / Alertas operacionais
+  const [showNotificationPopover, setShowNotificationPopover] = useState(false);
 
   // Modal e Formulário de Cadastro de Novo Vendedor
   const [isVendedorModalOpen, setIsVendedorModalOpen] = useState(false);
@@ -678,6 +682,22 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
     }
   };
 
+  // Arquivar / Resolver Alerta Andon ou de Meta
+  const handleResolveAlerta = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('alertas_andon')
+        .update({ resolvido: true })
+        .eq('id', id);
+
+      if (error) throw error;
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao resolver alerta:', error);
+      alert(`Falha ao arquivar alerta: ${error.message || 'Erro de conexão ou permissão.'}`);
+    }
+  };
+
   // Abrir Modal de Edição de Metas
   const openGoalModal = () => {
     const activeGoal = activeGoals[0];
@@ -799,7 +819,72 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative">
+          {/* Sino de Alertas Andon / Meta */}
+          <div className="relative">
+            <button
+              id="btn-alert-notifications"
+              onClick={() => setShowNotificationPopover(!showNotificationPopover)}
+              className={`p-1.5 border transition-all flex items-center justify-center relative rounded-none ${
+                alertas.filter(a => !a.resolvido).length > 0
+                  ? 'bg-[#B5504B]/10 border-[#B5504B]/30 text-[#B5504B] hover:bg-[#B5504B]/20'
+                  : 'bg-[#14181A] border-[#23282B] text-slate-400 hover:text-white'
+              }`}
+              title="Alertas Operacionais"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              {alertas.filter(a => !a.resolvido).length > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#B5504B] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#B5504B]"></span>
+                </span>
+              )}
+            </button>
+
+            {/* Dropdown de Alertas do Sino */}
+            {showNotificationPopover && (
+              <div className="absolute right-0 mt-2 w-80 bg-[#14181A] border border-[#23282B] shadow-2xl p-4 z-50 rounded-none space-y-3">
+                <div className="flex items-center justify-between border-b border-[#23282B] pb-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertOctagon className="w-3.5 h-3.5 text-[#B5504B]" />
+                    Desvios Comerciais ({alertas.filter(a => !a.resolvido).length})
+                  </span>
+                  <button 
+                    onClick={() => setShowNotificationPopover(false)}
+                    className="text-slate-500 hover:text-white text-xs"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                
+                <div className="max-h-64 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
+                  {alertas.filter(a => !a.resolvido).length === 0 ? (
+                    <p className="text-xs text-slate-500 text-center py-4 font-mono">Sem desvios comerciais ativos.</p>
+                  ) : (
+                    alertas.filter(a => !a.resolvido).map(alerta => (
+                      <div key={alerta.id} className="text-[11px] bg-[#0E1113] border border-[#23282B] p-2.5 space-y-2">
+                        <div className="text-slate-300 font-sans leading-normal">
+                          {alerta.mensagem}
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-[#1D2123]">
+                          <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 bg-[#B5504B]/10 text-[#B5504B] font-mono">
+                            Crítico
+                          </span>
+                          <button
+                            onClick={() => handleResolveAlerta(alerta.id)}
+                            className="text-[9px] font-bold text-slate-400 hover:text-white flex items-center gap-1 transition-colors uppercase font-mono"
+                          >
+                            <Check className="w-3 h-3 text-[#7FA88C]" /> Arquivar
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             id="btn-refresh-data"
             onClick={handleRefresh}
@@ -808,7 +893,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
-          <div className="text-[10.5px] uppercase tracking-widest text-[#4A5256] font-medium">
+          <div className="text-[10.5px] uppercase tracking-widest text-[#4A5256] font-medium hidden sm:block">
             Sincronizado automaticamente
           </div>
         </div>
@@ -889,23 +974,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           <div className="flex-1 h-px bg-[#23282B]"></div>
         </div>
 
-        {/* Alertas de Desvios Comerciais (se houver) */}
-        {alertas.filter(a => !a.resolvido).length > 0 && (
-          <div className="border border-[#B5504B] bg-[#14181A] p-5 space-y-3">
-            <div className="flex items-center gap-2 text-[#B5504B] font-bold text-sm">
-              <AlertOctagon className="w-4 h-4" />
-              <span>Desvios Comerciais Detectados</span>
-            </div>
-            <div className="space-y-2">
-              {alertas.filter(a => !a.resolvido).map(alerta => (
-                <div key={alerta.id} className="text-xs text-[#D8DEE1] leading-relaxed bg-[#0E1113] p-3 border border-[#23282B] flex items-center justify-between">
-                  <span>{alerta.mensagem}</span>
-                  <span className="text-[10px] px-2 py-0.5 border border-[#B5504B]/20 text-[#B5504B] bg-[#B5504B]/5 font-mono uppercase font-bold">n8n trigger</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
 
         {/* Readout Grid (hero + 4 cards) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-px bg-[#23282B] border border-[#23282B]">
