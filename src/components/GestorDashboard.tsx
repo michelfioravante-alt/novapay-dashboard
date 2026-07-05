@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  Cell, PieChart, Pie, ReferenceLine
+  ReferenceLine
 } from 'recharts';
 import { 
   Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp,
@@ -18,9 +18,13 @@ interface ReadoutCardProps {
   hero?: boolean;
   onClick?: () => void;
   active?: boolean;
+  sparklineData?: { valor: number }[];
+  sparklineColor?: string;
 }
 
-function ReadoutCard({ label, value, foot, footRight, footRightColor, hero, onClick, active }: ReadoutCardProps) {
+function ReadoutCard({ 
+  label, value, foot, footRight, footRightColor, hero, onClick, active, sparklineData, sparklineColor 
+}: ReadoutCardProps) {
   const rightColor = footRightColor === 'pos' ? 'text-[#7FA88C]' : footRightColor === 'neg' ? 'text-[#B5504B]' : footRightColor === 'warn' ? 'text-[#C9A227]' : 'text-[#7C868A]';
   return (
     <div 
@@ -35,7 +39,32 @@ function ReadoutCard({ label, value, foot, footRight, footRightColor, hero, onCl
     >
       <div>
         <p className={`text-[11px] font-medium uppercase tracking-[0.06em] transition-colors ${active ? 'text-[#C9A227] font-semibold' : 'text-[#7C868A]'}`}>{label}</p>
-        <p className={`font-mono font-bold text-white mt-3 mb-2.5 ${hero ? 'text-[34px]' : 'text-[26px]'}`}>{value}</p>
+        <div className="flex items-center justify-between mt-3 mb-2.5">
+          <p className={`font-mono font-bold text-white leading-none ${hero ? 'text-[30px] md:text-[34px]' : 'text-[24px] md:text-[26px]'}`}>{value}</p>
+          {sparklineData && sparklineData.length > 0 && (
+            <div className="w-16 md:w-20 h-7 flex-shrink-0 opacity-40 ml-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={sparklineData} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
+                  <defs>
+                    <linearGradient id={`sparkGrad-${label.replace(/[^a-zA-Z]/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={sparklineColor || '#7C868A'} stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor={sparklineColor || '#7C868A'} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Area
+                    type="monotone"
+                    dataKey="valor"
+                    stroke={sparklineColor || '#7C868A'}
+                    strokeWidth={1.5}
+                    fillOpacity={1}
+                    fill={`url(#sparkGrad-${label.replace(/[^a-zA-Z]/g, '')})`}
+                    dot={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
       </div>
       {(foot || footRight) && (
         <div className="flex items-center justify-between text-[11.5px] text-[#7C868A] pt-3 border-t border-[#1A1F21]">
@@ -344,8 +373,10 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       }, 0) / closedVendas.length
     : 0;
 
-  // 8. Ranking de Vendedores (Por valor fechado e perdido)
-  const rankingVendedores = vendedores.map(vend => {
+  // 8. Ranking de Vendedores (Apenas Vendedores comerciais, removendo perfil 'gestor')
+  const rankingVendedores = vendedores
+    .filter(vend => vend.perfil === 'vendedor')
+    .map(vend => {
     // Vendas ganhas do vendedor no período
     const totalGanho = vendas
       .filter(v => v.vendedor_id === vend.id && v.status === 'ganho' && isInPeriod(v.data_fechamento))
@@ -465,11 +496,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
   const countGanho = wonVendas.length;
   const countPerdido = lostVendas.length;
   
-  const pipelineData = [
-    { name: 'Em Negociação', value: countNegociacao, color: '#C9A227' },
-    { name: 'Ganhos', value: countGanho, color: '#7FA88C' },
-    { name: 'Perdidos', value: countPerdido, color: '#B5504B' }
-  ];
+
 
   // 11. Gráfico Histórico de 6 Meses (Linha/Área)
   // Agrupa entradas e saídas confirmadas nos últimos 6 meses (Fevereiro a Julho de 2026)
@@ -558,13 +585,27 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
     ticketMedioPorSegmento[seg].quantidade += 1;
   });
 
-  // 14. Projeção de Faturamento Fim do Mês (Ritmo Atual)
+  // 14. Projeção de Faturamento Fim do Mês (Forecast Realista por Pipeline)
+  // Receita Realizada + (Valor das Vendas Em Negociação * Conversão Comercial Histórica Geral)
   const isCurrentMonth = period === '2026-07';
-  const elapsedDays = 4; // Data atual da simulação: 04/07/2026
-  const totalDays = 31; // Total de dias em Julho
+  const totalNegociosEmNegociacao = baseFilteredVendas
+    .filter(v => v.status === 'em_negociacao')
+    .reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+  
+  const totalOportunidadesConcluidas = vendas.filter(v => ['ganho', 'perdido'].includes(v.status)).length;
+  const totalOportunidadesGanhas = vendas.filter(v => v.status === 'ganho').length;
+  const taxaConversaoMedia = totalOportunidadesConcluidas > 0 
+    ? (totalOportunidadesGanhas / totalOportunidadesConcluidas) 
+    : 0.77; // fallback histórico geral ~77%
+
   const projectedRevenue = isCurrentMonth 
-    ? (totalEntradas / elapsedDays) * totalDays 
+    ? (totalEntradas + (totalNegociosEmNegociacao * taxaConversaoMedia)) 
     : totalEntradas;
+
+  // Valores dos faturamentos por estágio do Funil
+  const valorNegociando = filteredVendas.filter(v => v.status === 'em_negociacao').reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+  const valorGanho = wonVendas.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+  const valorPerdido = lostVendas.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
 
   // 15. Análise de Clientes Ativos vs Inativos (Retenção / Churn)
   const totalClientes = clientes.length;
@@ -987,6 +1028,8 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             hero
             onClick={() => setActiveKpiFilter('receita')}
             active={activeKpiFilter === 'receita'}
+            sparklineData={chartHistoricoData.map(d => ({ valor: d.Faturamento }))}
+            sparklineColor="#7FA88C"
           />
           <ReadoutCard
             label="Ticket Médio"
@@ -994,6 +1037,8 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             foot="por contrato fechado"
             onClick={() => setActiveKpiFilter('ticket')}
             active={activeKpiFilter === 'ticket'}
+            sparklineData={chartHistoricoData.map(d => ({ valor: d.TicketMedio }))}
+            sparklineColor="#7C868A"
           />
           <ReadoutCard
             label="Saldo Operacional"
@@ -1130,51 +1175,76 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             </div>
           </div>
 
-          {/* Pipeline de Vendas */}
+          {/* Pipeline de Vendas (Funil Comercial Horizontal) */}
           <div className="bg-[#14181A] p-6 space-y-4 flex flex-col justify-between">
             <div>
-              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Pipeline de vendas</h3>
+              <h3 className="text-[13.5px] font-semibold text-[#D8DEE1]">Pipeline de vendas (Funil)</h3>
               <p className="text-xs text-[#7C868A] mt-1">Status das negociações do período</p>
             </div>
             
-            <div className="h-44 w-full flex items-center justify-center relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pipelineData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={70}
-                    paddingAngle={3}
-                    dataKey="value"
-                    isAnimationActive={false}
-                  >
-                    {pipelineData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#14181A', borderColor: '#23282B' }} 
-                    itemStyle={{ color: '#cbd5e1' }} 
-                    labelStyle={{ color: '#ffffff' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-xs text-slate-500 font-bold uppercase leading-none">Total</span>
-                <span className="text-2xl font-black text-white mt-1 font-mono">{totalOportunidades}</span>
+            {/* Visualização de Funil Comercial Geometrico */}
+            <div className="space-y-2.5 py-2">
+              {/* Estágio 1: Em Negociação (Topo do Funil - 100%) */}
+              <div 
+                className="mx-auto bg-[#C9A227]/5 border border-[#C9A227]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#C9A227]/10"
+                style={{ width: '100%' }}
+              >
+                <div className="flex justify-between items-center z-10">
+                  <span className="text-[9.5px] font-bold text-[#C9A227] uppercase tracking-wider">1. Em Negociação</span>
+                  <span className="text-[11px] font-mono font-bold text-white">
+                    {countNegociacao} neg. · {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorNegociando)}
+                  </span>
+                </div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#C9A227] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countNegociacao / totalOportunidades * 100) : 0}%` }}></div>
+              </div>
+
+              {/* Estágio 2: Fechado Ganho (Meio do Funil - 85%) */}
+              <div 
+                className="mx-auto bg-[#7FA88C]/5 border border-[#7FA88C]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#7FA88C]/10"
+                style={{ width: '85%' }}
+              >
+                <div className="flex justify-between items-center z-10">
+                  <span className="text-[9.5px] font-bold text-[#7FA88C] uppercase tracking-wider">2. Fechado Ganho</span>
+                  <span className="text-[11px] font-mono font-bold text-white">
+                    {countGanho} neg. · {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorGanho)}
+                  </span>
+                </div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#7FA88C] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countGanho / totalOportunidades * 100) : 0}%` }}></div>
+              </div>
+
+              {/* Estágio 3: Fechado Perdido (Fundo do Funil - 70%) */}
+              <div 
+                className="mx-auto bg-[#B5504B]/5 border border-[#B5504B]/20 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:bg-[#B5504B]/10"
+                style={{ width: '70%' }}
+              >
+                <div className="flex justify-between items-center z-10">
+                  <span className="text-[9.5px] font-bold text-[#B5504B] uppercase tracking-wider">3. Fechado Perdido</span>
+                  <span className="text-[11px] font-mono font-bold text-white">
+                    {countPerdido} neg. · {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valorPerdido)}
+                  </span>
+                </div>
+                <div className="absolute left-0 bottom-0 h-0.5 bg-[#B5504B] opacity-40" style={{ width: `${totalOportunidades > 0 ? (countPerdido / totalOportunidades * 100) : 0}%` }}></div>
               </div>
             </div>
 
-            {/* KPI Strip */}
-            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B] mt-4">
-              {pipelineData.map(entry => (
-                <div key={entry.name} className="bg-[#14181A] p-3 text-center">
-                  <div className="text-[9.5px] font-medium text-[#4A5256] uppercase tracking-[0.05em]">{entry.name}</div>
-                  <div className="font-mono text-[17px] mt-1" style={{ color: entry.color }}>{entry.value}</div>
+            {/* KPI Strip Informativo Simplificado */}
+            <div className="grid grid-cols-3 gap-px bg-[#23282B] border border-[#23282B] mt-2">
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Negócios Totais</div>
+                <div className="font-mono text-[14px] mt-0.5 text-white">{totalOportunidades}</div>
+              </div>
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Ganho</div>
+                <div className="font-mono text-[14px] mt-0.5 text-[#7FA88C] font-bold">
+                  {totalOportunidades > 0 ? ((countGanho / totalOportunidades) * 100).toFixed(0) : '0'}%
                 </div>
-              ))}
+              </div>
+              <div className="bg-[#14181A] p-2.5 text-center">
+                <div className="text-[9px] font-semibold text-[#4A5256] uppercase tracking-[0.05em]">Taxa Perda</div>
+                <div className="font-mono text-[14px] mt-0.5 text-[#B5504B]">
+                  {totalOportunidades > 0 ? ((countPerdido / totalOportunidades) * 100).toFixed(0) : '0'}%
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1234,55 +1304,59 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
               <p className="text-[10px] text-slate-500 -mt-2">Clique em um vendedor para isolar suas métricas e andamento comercial</p>
 
               <div className="space-y-1">
-                {rankingVendedores.map((vend, index) => {
-                  const isSelected = selectedVendedorFilter === vend.id;
-                  const totalFechadoVal = vend.ganho + vend.perdido;
-                  const pctGanho = totalFechadoVal > 0 ? (vend.ganho / totalFechadoVal) * 100 : 0;
-                  const pctPerdido = totalFechadoVal > 0 ? (vend.perdido / totalFechadoVal) * 100 : 0;
-                  
-                  return (
-                    <div 
-                      key={index} 
-                      onClick={() => setSelectedVendedorFilter(isSelected ? 'todos' : vend.id)}
-                      className={`flex flex-col py-2.5 px-3 border border-transparent cursor-pointer transition-all hover:bg-[#1C2022] ${
-                        isSelected 
-                          ? 'bg-[#C9A227]/10 border-[#C9A227]/20 text-white' 
-                          : 'text-[#D8DEE1]'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center gap-2">
-                        <div className="flex items-center gap-2 truncate">
-                          <span className={`font-mono text-[10px] w-4 ${
-                            index === 0 ? 'text-[#C9A227] font-bold' : 'text-[#4A5256]'
-                          }`}>{String(index + 1).padStart(2, '0')}</span>
-                          <div className="flex flex-col truncate">
-                            <span className={`text-xs ${isSelected ? 'font-bold text-white' : 'font-medium'}`}>{vend.nome}</span>
-                            <span className="text-[9.5px] text-slate-500 font-medium">
-                              Conv: {vend.conversao.toFixed(0)}% · {vend.totalNegocios} neg.
+                {(() => {
+                  const maxGanho = Math.max(...rankingVendedores.map(v => v.ganho), 1);
+                  return rankingVendedores.map((vend, index) => {
+                    const isSelected = selectedVendedorFilter === vend.id;
+                    const pctBarraLider = (vend.ganho / maxGanho) * 100;
+                    
+                    return (
+                      <div 
+                        key={index} 
+                        onClick={() => setSelectedVendedorFilter(isSelected ? 'todos' : vend.id)}
+                        className={`flex flex-col py-2.5 px-3 border border-transparent cursor-pointer transition-all hover:bg-[#1C2022] ${
+                          isSelected 
+                            ? 'bg-[#C9A227]/10 border-[#C9A227]/20 text-white' 
+                            : 'text-[#D8DEE1]'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center gap-2">
+                          <div className="flex items-center gap-2 truncate">
+                            <span className={`font-mono text-[10px] w-4 ${
+                              index === 0 ? 'text-[#C9A227] font-bold' : 'text-[#4A5256]'
+                            }`}>{String(index + 1).padStart(2, '0')}</span>
+                            <div className="flex flex-col truncate">
+                              <span className={`text-xs ${isSelected ? 'font-bold text-white' : 'font-medium'}`}>{vend.nome}</span>
+                              <span className="text-[9.5px] text-slate-500 font-medium">
+                                Conv: {vend.conversao.toFixed(0)}% · {vend.totalNegocios} neg.
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col items-end text-right font-mono text-[11px] flex-shrink-0">
+                            <span className="text-[#7FA88C] font-bold">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.ganho)}
+                            </span>
+                            <span className="text-slate-500 text-[9.5px]">
+                              perdido {new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(vend.perdido)}
                             </span>
                           </div>
                         </div>
                         
-                        <div className="flex flex-col items-end text-right font-mono text-[11px] flex-shrink-0">
-                          <span className="text-[#7FA88C] font-bold">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.ganho)}
-                          </span>
-                          <span className="text-[#B5504B] text-[9.5px]">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vend.perdido)}
-                          </span>
+                        {/* Barra Horizontal de Performance Comercial Proporcional ao Líder */}
+                        <div className="w-full mt-2">
+                          <div className="h-1.5 bg-[#0E1113] w-full flex border border-[#23282B]/20 relative overflow-hidden">
+                            <div 
+                              className="h-full bg-[#7FA88C]" 
+                              style={{ width: `${pctBarraLider}%` }}
+                              title={`Performance: ${pctBarraLider.toFixed(0)}% em relação ao líder`}
+                            />
+                          </div>
                         </div>
                       </div>
-                      
-                      {/* Barra de Proporção Ganho vs Perdido */}
-                      {totalFechadoVal > 0 && (
-                        <div className="h-1 bg-[#0E1113] w-full mt-1.5 flex overflow-hidden border border-[#23282B]/20">
-                          <div className="h-full bg-[#7FA88C]" style={{ width: `${pctGanho}%` }} title={`Ganhos: ${pctGanho.toFixed(0)}%`}></div>
-                          <div className="h-full bg-[#B5504B]" style={{ width: `${pctPerdido}%` }} title={`Perdas: ${pctPerdido.toFixed(0)}%`}></div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             </div>
 
