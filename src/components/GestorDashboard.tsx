@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ComposedChart, Bar, Line
+  ComposedChart, Bar, Line, Cell
 } from 'recharts';
 import { 
   Plus, CheckCircle, RefreshCw, FileQuestion, ArrowRight, ClipboardList, Edit2, X, AlertOctagon, TrendingUp,
@@ -1401,7 +1401,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
 
                   return (
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={dataPareto} margin={{ top: 15, right: -5, left: -25, bottom: 5 }}>
+                      <ComposedChart data={dataPareto} margin={{ top: 15, right: 10, left: -10, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#1A1F21" vertical={false} />
                         <XAxis dataKey="vendedor" stroke="#475569" tickLine={false} />
                         <YAxis 
@@ -1430,9 +1430,14 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                         <Bar 
                           yAxisId="left"
                           dataKey="Valor Vendido" 
-                          fill="#7FA88C" 
                           barSize={20}
-                        />
+                        >
+                          {dataPareto.map((_, idx) => {
+                            // Cores contrastantes e consistentes com a paleta comercial da NovaPay
+                            const colors = ['#7FA88C', '#B5504B', '#C9A227', '#8A9A86'];
+                            return <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />;
+                          })}
+                        </Bar>
                         <Line 
                           yAxisId="right"
                           type="monotone" 
