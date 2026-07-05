@@ -60,8 +60,7 @@ metas           → id, mes_referencia, meta_receita, meta_novos_clientes
 vendedores      → id, nome, email, perfil (gestor/vendedor)
 vendas          → id, vendedor_id, cliente_id, valor_contrato, data_abertura,
                   data_fechamento, status, motivo_perda
-alertas_andon   → alertas de processo internos do gestor
-alertas_meta    → log de alertas de receita disparados pela automação
+alertas_andon   → alertas de processos manuais (Andon) e desvios automáticos de receita
 pdca_acoes      → ações 5W2H do gestor
 tarefas_vendedor→ checklist de atividades do vendedor
 ```
@@ -76,7 +75,7 @@ tarefas_vendedor→ checklist de atividades do vendedor
 | Nome | Tipo | O que faz |
 |------|------|-----------|
 | `trg_on_sale_won` | Trigger AFTER INSERT/UPDATE em `vendas` | Quando status muda para `ganho`: cria transação de `entrada` em `transacoes` e atualiza o cliente para `status = ativo` |
-| `verificar_meta_mensal()` | Function PL/pgSQL | Chamada diariamente pela automação: verifica se receita < 70% da meta com ≤ 10 dias restantes e registra log em `alertas_meta` |
+| `verificar_meta_mensal()` | Function PL/pgSQL | Chamada diariamente pela automação: verifica se receita < 70% da meta com ≤ 10 dias restantes e registra log em `alertas_andon` |
 
 ---
 
@@ -102,7 +101,7 @@ graph TD
     style E fill:#7FA88C20,stroke:#7FA88C,stroke-width:1px,color:#fff
 ```
 
-A function SQL registra o alerta em `public.alertas_meta` para auditoria e exibição no painel do gestor.
+A function SQL registra o alerta em `public.alertas_andon` para auditoria e exibição no painel do gestor.
 
 ---
 
