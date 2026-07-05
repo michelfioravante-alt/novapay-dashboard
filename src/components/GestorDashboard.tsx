@@ -1075,7 +1075,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             </button>
 
             {showSettingsDropdown && (
-              <div className="absolute right-0 mt-2 w-56 md:w-60 bg-[#14181A] border border-[#23282B] shadow-2xl z-50 rounded-none flex flex-col divide-y divide-[#1D2123]">
+              <div className="fixed md:absolute inset-x-4 md:inset-x-auto md:right-0 mt-2 w-auto md:w-60 bg-[#14181A] border border-[#23282B] shadow-2xl z-50 rounded-none flex flex-col divide-y divide-[#1D2123] top-24 md:top-auto animate-fadeIn">
                 <button
                   onClick={() => {
                     setShowSettingsDropdown(false);
