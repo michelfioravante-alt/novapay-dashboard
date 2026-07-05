@@ -1024,62 +1024,6 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           SEÇÃO RESULTADOS — KPIs
           ========================================================================= */}
       <div className={`space-y-8 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
-        {/* Dois Filtros Unidos */}
-        <div className="flex flex-col gap-2 max-w-[280px]">
-          <div className="flex items-center bg-[#14181A] border border-[#23282B] px-3 py-1.5 justify-between">
-            <span className="text-[10px] font-bold text-[#4A5256] uppercase tracking-wider pr-2">Período:</span>
-            <select
-              id="filter-period-select"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              className="bg-[#14181A] text-[11px] font-semibold text-white py-0.5 focus:outline-none border-none cursor-pointer w-40 text-right"
-            >
-              <optgroup label="Meses" className="bg-[#0E1113]">
-                {(() => {
-                  const opts = [];
-                  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                  const now = new Date(2026, 6, 1);
-                  for (let i = 0; i < 18; i++) {
-                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, '0');
-                    opts.push(<option key={`${y}-${m}`} value={`${y}-${m}`} className="bg-[#0E1113] text-white">{monthNames[d.getMonth()]} {y}</option>);
-                  }
-                  return opts;
-                })()}
-              </optgroup>
-              <optgroup label="Trimestres" className="bg-[#0E1113]">
-                {[2026,2025].flatMap(y => [4,3,2,1].map(q => (
-                  <option key={`Q${q}-${y}`} value={`Q${q}-${y}`} className="bg-[#0E1113] text-white">{q}º Trimestre {y}</option>
-                )))}
-              </optgroup>
-              <optgroup label="Semestres" className="bg-[#0E1113]">
-                {[2026,2025].flatMap(y => [2,1].map(s => (
-                  <option key={`S${s}-${y}`} value={`S${s}-${y}`} className="bg-[#0E1113] text-white">{s}º Semestre {y}</option>
-                )))}
-              </optgroup>
-            </select>
-          </div>
-
-          <div className="flex items-center bg-[#14181A] border border-[#23282B] px-3 py-1.5 justify-between">
-            <span className="text-[10px] font-bold text-[#4A5256] uppercase tracking-wider pr-2">Vendedor:</span>
-            <select
-              id="filter-vendedor-select"
-              value={selectedVendedorFilter}
-              onChange={(e) => setSelectedVendedorFilter(e.target.value)}
-              className="bg-[#14181A] text-[11px] font-semibold text-white py-0.5 focus:outline-none border-none cursor-pointer w-40 text-right"
-            >
-              <option value="todos" className="bg-[#0E1113] text-white">Todos os Vendedores</option>
-              {vendedores.filter(v => v.perfil === 'vendedor').map(v => (
-                <option key={v.id} value={v.id} className="bg-[#0E1113] text-white">{v.nome}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Linha branca/cinza horizontal divisória */}
-        <div className="h-px bg-[#23282B] w-full mb-6"></div>
-
         {/* Resultados do período */}
         <div className="flex items-center gap-3">
           <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Resultados do período</span>
@@ -1155,22 +1099,75 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
                   {activeKpiFilter === 'saldo' && "Evolução de Saldo Operacional"}
                   {activeKpiFilter === 'clientes' && "Acompanhamento de Novos Clientes"}
                   {activeKpiFilter === 'roi' && "Retorno sobre Investimento (ROI)"}
-                  <span className="text-[9px] font-mono text-[#C9A227] bg-[#C9A227]/5 border border-[#C9A227]/10 px-1.5 py-0.5 uppercase tracking-wider font-bold">
-                    Histórico
-                  </span>
                 </span>
+
+                {/* Período Contextual Selector */}
+                <div className="relative inline-block">
+                  <select
+                    id="filter-period-select"
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value)}
+                    className="appearance-none bg-[#C9A227]/5 border border-[#C9A227]/25 text-[#C9A227] hover:border-[#C9A227]/50 text-[9px] font-mono font-bold px-2 py-0.5 pr-5 uppercase tracking-wider rounded-none cursor-pointer focus:outline-none focus:ring-0"
+                  >
+                    <optgroup label="Meses" className="bg-[#0E1113] text-white">
+                      {(() => {
+                        const opts = [];
+                        const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                        const now = new Date(2026, 6, 1);
+                        for (let i = 0; i < 18; i++) {
+                          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                          const y = d.getFullYear();
+                          const m = String(d.getMonth() + 1).padStart(2, '0');
+                          opts.push(<option key={`${y}-${m}`} value={`${y}-${m}`}>{monthNames[d.getMonth()]} {y}</option>);
+                        }
+                        return opts;
+                      })()}
+                    </optgroup>
+                    <optgroup label="Trimestres" className="bg-[#0E1113] text-white">
+                      {[2026,2025].flatMap(y => [4,3,2,1].map(q => (
+                        <option key={`Q${q}-${y}`} value={`Q${q}-${y}`}>{q}º Trimestre {y}</option>
+                      )))}
+                    </optgroup>
+                    <optgroup label="Semestres" className="bg-[#0E1113] text-white">
+                      {[2026,2025].flatMap(y => [2,1].map(s => (
+                        <option key={`S${s}-${y}`} value={`S${s}-${y}`}>{s}º Semestre {y}</option>
+                      )))}
+                    </optgroup>
+                  </select>
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-[6px] text-[#C9A227] font-mono font-black">
+                    ▼
+                  </span>
+                </div>
               </h3>
               
               {/* Legenda Dinâmica de Filtros Aplicados */}
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mt-2.5 text-[11px] text-slate-500 font-sans border-t border-[#1A1F21] pt-2.5">
                 <span className="text-slate-600">Visualizando:</span>
-                <span className={`font-mono text-[9px] uppercase font-bold px-1.5 py-0.5 border ${
-                  selectedVendedorFilter === 'todos'
-                    ? 'text-slate-400 bg-[#23282B] border-[#23282B]'
-                    : 'text-[#C9A227] bg-[#C9A227]/5 border-[#C9A227]/20'
-                }`}>
-                  {selectedVendedorFilter === 'todos' ? 'Todos os Vendedores' : (vendedores.find(v => v.id === selectedVendedorFilter)?.nome || 'Vendedor')}
-                </span>
+                
+                {/* Vendedor Contextual Selector */}
+                <div className="relative inline-block">
+                  <select
+                    id="filter-vendedor-select"
+                    value={selectedVendedorFilter}
+                    onChange={(e) => setSelectedVendedorFilter(e.target.value)}
+                    className={`appearance-none font-mono text-[9px] uppercase font-bold px-2 py-0.5 pr-5 border rounded-none cursor-pointer focus:outline-none focus:ring-0 ${
+                      selectedVendedorFilter === 'todos'
+                        ? 'text-slate-400 bg-[#23282B] border-[#23282B] hover:border-slate-600'
+                        : 'text-[#C9A227] bg-[#C9A227]/5 border-[#C9A227]/25 hover:border-[#C9A227]/50'
+                    }`}
+                  >
+                    <option value="todos" className="bg-[#0E1113] text-white">Todos os Vendedores</option>
+                    {vendedores.filter(v => v.perfil === 'vendedor').map(v => (
+                      <option key={v.id} value={v.id} className="bg-[#0E1113] text-white">{v.nome}</option>
+                    ))}
+                  </select>
+                  <span className={`absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-[6px] font-mono font-black ${
+                    selectedVendedorFilter === 'todos' ? 'text-slate-500' : 'text-[#C9A227]'
+                  }`}>
+                    ▼
+                  </span>
+                </div>
+
                 <span className="text-[#23282B] font-mono">|</span>
                 <span className="text-slate-400 font-medium">
                   {activeKpiFilter === 'receita' && "Curva de faturamento ganho comparado a perdas"}
