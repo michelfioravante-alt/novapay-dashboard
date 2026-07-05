@@ -810,29 +810,6 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       {/* Barra de Filtros de Período e Andon Light */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#23282B] pb-4">
         <div className="flex flex-wrap items-center gap-4">
-          {/* Segmented Control de Período */}
-          <div className="flex p-0.5 bg-[#14181A] border border-[#23282B] rounded-none">
-            {[
-              { id: '2026-07', label: 'Julho' },
-              { id: '2026-06', label: 'Junho' },
-              { id: '2026-05', label: 'Maio' },
-              { id: 'Q2-2026', label: '2º Trimestre' }
-            ].map(p => (
-              <button
-                key={p.id}
-                id={`filter-period-${p.id}`}
-                onClick={() => setPeriod(p.id)}
-                className={`px-3 py-1.5 text-[10.5px] font-bold transition-all rounded-none ${
-                  period === p.id 
-                    ? 'bg-[#23282B] text-[#C9A227]' 
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
           {/* Badge Informativa de Filtro de Vendedor Ativo */}
           {selectedVendedorFilter !== 'todos' && (
             <div className="flex items-center gap-1.5 bg-[#C9A227]/5 border border-[#C9A227]/25 px-2 py-1 text-[10px] font-mono text-[#C9A227] animate-fadeIn">
@@ -1010,9 +987,30 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
           SEÇÃO RESULTADOS — KPIs
           ========================================================================= */}
       <div className={`space-y-8 ${mobileTab === 'dashboard' ? 'block' : 'hidden md:block'}`}>
-        {/* Section label */}
-        <div className="flex items-center gap-3">
+        {/* Section label + Period tabs inline */}
+        <div className="flex items-center gap-4">
           <span className="text-[10.5px] font-medium text-[#4A5256] uppercase tracking-[0.12em] whitespace-nowrap">Resultados do período</span>
+          <div className="flex items-center gap-4">
+            {[
+              { id: '2026-07', label: 'Julho' },
+              { id: '2026-06', label: 'Junho' },
+              { id: '2026-05', label: 'Maio' },
+              { id: 'Q2-2026', label: '2º Tri' }
+            ].map(p => (
+              <button
+                key={p.id}
+                id={`filter-period-${p.id}`}
+                onClick={() => setPeriod(p.id)}
+                className={`text-[10.5px] font-semibold transition-colors pb-0.5 ${
+                  period === p.id
+                    ? 'text-[#C9A227] border-b border-[#C9A227]'
+                    : 'text-[#4A5256] hover:text-slate-400 border-b border-transparent'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
           <div className="flex-1 h-px bg-[#23282B]"></div>
         </div>
 
