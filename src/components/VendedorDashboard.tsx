@@ -87,6 +87,9 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
   const [submittingClient, setSubmittingClient] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
 
+  // Filtro de Tempo (Boas Práticas de CRM)
+  const [timeFilter, setTimeFilter] = useState('current_month'); // 'current_month', '30_days', '90_days', 'all'
+
   // Estado para solicitação de auxílio Andon
   const [requestingAndon, setRequestingAndon] = useState(false);
 
@@ -579,30 +582,60 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
   // CÁLCULO DOS KPIS INDIVIDUAIS
   // =========================================================================
 
-  // Consideramos apenas vendas do mês corrente para a meta individual
-  const todayObj = new Date();
-  const currentMonthStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}`;
-  
-  const currentMonthSales = sales.filter(v => {
-    const d = v.data_fechamento || v.data_abertura;
-    return d && d.startsWith(currentMonthStr);
-  });
+  // Consideramos o filtro de tempo selecionado para os KPIs e Funil (concluídos)
+  const getFilteredByTime = (vendasList: any[]) => {
+    const today = new Date();
+    const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
-  const wonSalesThisMonth = currentMonthSales.filter(v => v.status === 'ganho');
-  
-  // Realizado Comercial Individual (Faturamento total de vendas ganhas no mês)
-  const faturamentoRealizado = wonSalesThisMonth.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
+    return vendasList.filter(v => {
+      // Propostas ativas sempre aparecem para o vendedor não perder controle de seu funil
+      if (v.status === 'em_negociacao') return true;
+
+      const dateStr = v.data_fechamento || v.data_abertura || v.created_at;
+      if (!dateStr) return true;
+
+      if (timeFilter === 'current_month') {
+        return dateStr.startsWith(currentMonthStr);
+      }
+
+      // Parser manual simplificado para evitar inconsistências de fuso horário
+      const parts = dateStr.split('-');
+      if (parts.length < 3) return true;
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2].substring(0, 2), 10);
+      const saleDate = new Date(year, month, day);
+
+      const diffTime = today.getTime() - saleDate.getTime();
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+      if (timeFilter === '30_days') {
+        return diffDays <= 30 && diffDays >= -1; // margem pequena para datas futuras/hoje
+      }
+      if (timeFilter === '90_days') {
+        return diffDays <= 90 && diffDays >= -1;
+      }
+
+      return true; // 'all'
+    });
+  };
+
+  const timeFilteredSales = getFilteredByTime(sales);
+  const wonSalesThisPeriod = timeFilteredSales.filter(v => v.status === 'ganho');
+
+  // Realizado Comercial Individual (Faturamento total de vendas ganhas no período selecionado)
+  const faturamentoRealizado = wonSalesThisPeriod.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
 
   // Meta Individual Proporcional (Meta Global / Quantidade de Vendedores ativos)
   const metaIndividual = totalVendedores > 0 ? (metaReceitaGlobal / totalVendedores) : 25000.00; 
 
-  // Comissão estimada: 5% sobre vendas ganhas no mês
+  // Comissão estimada: 5% sobre vendas ganhas no período selecionado
   const comissaoEstimada = faturamentoRealizado * 0.05;
 
   const pctMeta = (faturamentoRealizado / metaIndividual) * 100;
 
-  // Filtragem de vendas para o campo de pesquisa CRM
-  const filteredSales = sales.filter(s => 
+  // Filtragem de vendas para o campo de pesquisa CRM (agora baseado no timeFilteredSales!)
+  const filteredSales = timeFilteredSales.filter(s => 
     !crmSearch ? true : (
       s.clientes?.nome?.toLowerCase().includes(crmSearch.toLowerCase()) ||
       s.clientes?.segmento?.toLowerCase().includes(crmSearch.toLowerCase())
@@ -714,6 +747,29 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
+          {activeDesktopTab !== 'clientes' && (
+            <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
+              {([
+                { id: 'current_month', label: 'Mês' },
+                { id: '30_days', label: '30D' },
+                { id: '90_days', label: '90D' },
+                { id: 'all', label: 'Tudo' }
+              ]).map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setTimeFilter(opt.id)}
+                  className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-all ${
+                    timeFilter === opt.id 
+                      ? 'bg-[#C9A227]/10 text-[#C9A227] border border-[#C9A227]/20' 
+                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <button
             id="btn-vendedor-refresh"
             onClick={handleRefresh}
@@ -751,10 +807,16 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
         <div className="bg-[#14181A] border-r border-b border-[#23282B] p-6 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meta Individual do Mês</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                {timeFilter === 'current_month' ? 'Meta Individual do Mês' : 'Realizado no Período'}
+              </p>
               <h3 className="text-2xl font-extrabold text-white mt-2 tracking-tight font-mono">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(faturamentoRealizado)} 
-                <span className="text-xs font-medium text-slate-500 block mt-1 font-sans">de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metaIndividual)}</span>
+                <span className="text-xs font-medium text-slate-500 block mt-1 font-sans">
+                  {timeFilter === 'current_month' 
+                    ? `de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metaIndividual)}` 
+                    : `Meta Ref. Mensal: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metaIndividual)}`}
+                </span>
               </h3>
             </div>
             <div className="h-10 w-10 border border-[#23282B] bg-[#0E1113] flex items-center justify-center text-slate-300">
@@ -797,7 +859,7 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-[#23282B] text-xs text-slate-500">
-            <span>Provisionado sobre {wonSalesThisMonth.length} vendas ganhas este mês</span>
+            <span>Provisionado sobre {wonSalesThisPeriod.length} vendas ganhas {timeFilter === 'current_month' ? 'este mês' : 'no período'}</span>
           </div>
         </div>
 
