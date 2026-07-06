@@ -18,7 +18,10 @@ CREATE TABLE IF NOT EXISTS public.clientes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome VARCHAR(255) NOT NULL,
     segmento VARCHAR(100) NOT NULL,
+    email VARCHAR(255),
+    telefone VARCHAR(50),
     status VARCHAR(50) NOT NULL DEFAULT 'ativo', -- 'ativo' ou 'inativo'
+    vendedor_id UUID REFERENCES public.vendedores(id) ON DELETE SET NULL, -- Carteira pessoal do vendedor
     data_cadastro TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -164,16 +167,40 @@ CREATE POLICY "Permitir deleção de vendedores apenas para gestores"
     );
 
 
--- 2. Políticas para CLIENTES (Todos autenticados podem ler e cadastrar clientes)
-CREATE POLICY "Permitir leitura de clientes para todos autenticados"
+-- 2. Políticas para CLIENTES (Segurança de Carteira: Gestor vê tudo; Vendedor vê apenas os seus ou globais sem dono)
+CREATE POLICY "Permitir leitura de clientes (Gestor total ou vendedor pessoal)"
     ON public.clientes FOR SELECT
     TO authenticated
-    USING (true);
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.vendedores
+            WHERE email = auth.jwt() ->> 'email' AND perfil = 'gestor'
+        )
+        OR
+        vendedor_id IN (
+            SELECT id FROM public.vendedores
+            WHERE email = auth.jwt() ->> 'email'
+        )
+        OR
+        vendedor_id IS NULL
+    );
 
-CREATE POLICY "Permitir inserção e atualização de clientes para autenticados"
+CREATE POLICY "Permitir escrita de clientes (Gestor total ou vendedor pessoal)"
     ON public.clientes FOR ALL
     TO authenticated
-    USING (true);
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.vendedores
+            WHERE email = auth.jwt() ->> 'email' AND perfil = 'gestor'
+        )
+        OR
+        vendedor_id IN (
+            SELECT id FROM public.vendedores
+            WHERE email = auth.jwt() ->> 'email'
+        )
+        OR
+        vendedor_id IS NULL
+    );
 
 -- 3. Políticas para TRANSAÇÕES (Gestor vê tudo e escreve; Vendedor não vê detalhes financeiros gerais do fluxo de caixa)
 CREATE POLICY "Permitir tudo em transações apenas para gestores"
