@@ -114,6 +114,15 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
   const [newActionWhy, setNewActionWhy] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
 
+  // Estado de notificação (Toast do App)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4500);
+  };
+
   // Filtro de Vendedor
   const [selectedVendedorFilter, setSelectedVendedorFilter] = useState<string>('todos');
 
@@ -727,7 +736,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       loadData();
     } catch (error: any) {
       console.error('Erro ao registrar Kaizen:', error);
-      alert(`Falha ao registrar a análise: ${error.message || 'Erro de conexão ou permissão.'}`);
+      showToast(`Falha ao registrar a análise: ${error.message || 'Erro de conexão ou permissão.'}`, 'error');
     } finally {
       setSubmittingKaizen(false);
     }
@@ -763,7 +772,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       loadData();
     } catch (error: any) {
       console.error('Erro ao registrar ação:', error);
-      alert(`Falha ao salvar a ação 5W2H: ${error.message || 'Erro de conexão ou permissão.'}`);
+      showToast(`Falha ao salvar a ação 5W2H: ${error.message || 'Erro de conexão ou permissão.'}`, 'error');
     } finally {
       setSubmittingAction(false);
     }
@@ -782,7 +791,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       loadData();
     } catch (error: any) {
       console.error('Erro ao atualizar status da ação:', error);
-      alert(`Falha ao atualizar o status da ação: ${error.message || 'Erro de conexão ou permissão.'}`);
+      showToast(`Falha ao atualizar o status da ação: ${error.message || 'Erro de conexão ou permissão.'}`, 'error');
     }
   };
 
@@ -798,7 +807,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
       loadData();
     } catch (error: any) {
       console.error('Erro ao resolver alerta:', error);
-      alert(`Falha ao arquivar alerta: ${error.message || 'Erro de conexão ou permissão.'}`);
+      showToast(`Falha ao arquivar alerta: ${error.message || 'Erro de conexão ou permissão.'}`, 'error');
     }
   };
 
@@ -907,7 +916,7 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
     const transacoesExport = filteredTransacoes;
 
     if (transacoesExport.length === 0) {
-      alert("Não há dados de transações disponíveis para exportação no período selecionado.");
+      showToast("Não há dados de transações disponíveis para exportação no período selecionado.", "error");
       return;
     }
 
@@ -2452,6 +2461,26 @@ export default function GestorDashboard({ resetKey = 0 }: { resetKey?: number })
             >
               Fechar Detalhes
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Notificação Toast do App */}
+      {toast && (
+        <div 
+          className="fixed top-6 right-6 z-[9999] animate-fade-in"
+          style={{
+            animation: 'slideIn 0.3s ease forwards'
+          }}
+        >
+          <div className={`flex items-center gap-3 px-4 py-3 border shadow-2xl backdrop-blur-md font-sans text-xs font-bold uppercase tracking-wider ${
+            toast.type === 'success' 
+              ? 'bg-[#7FA88C]/15 border-[#7FA88C]/30 text-[#7FA88C]' 
+              : 'bg-[#B5504B]/15 border-[#B5504B]/30 text-[#B5504B]'
+          }`}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: toast.type === 'success' ? '#7FA88C' : '#B5504B' }}></span>
+            <span>{toast.message}</span>
+            <button onClick={() => setToast(null)} className="ml-2 hover:text-white text-slate-400 font-normal">✕</button>
           </div>
         </div>
       )}

@@ -90,6 +90,15 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
   // Filtro de Tempo (Boas Práticas de CRM)
   const [timeFilter, setTimeFilter] = useState('current_month'); // 'current_month', '30_days', '90_days', 'all'
 
+  // Estado de notificação (Toast do App)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4500);
+  };
+
   // Estado para solicitação de auxílio Andon
   const [requestingAndon, setRequestingAndon] = useState(false);
 
@@ -112,10 +121,10 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
         ]);
         
       if (error) throw error;
-      alert("Alerta Andon enviado ao Gestor com sucesso!");
+      showToast("Alerta Andon enviado ao Gestor com sucesso!", 'success');
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao acionar alerta Andon: " + err.message);
+      showToast("Erro ao acionar alerta Andon: " + err.message, 'error');
     } finally {
       setRequestingAndon(false);
     }
@@ -363,7 +372,7 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
       }
     } catch (error: any) {
       console.error('Erro ao cadastrar cliente:', error);
-      alert('Erro ao cadastrar cliente: ' + error.message);
+      showToast('Erro ao cadastrar cliente: ' + error.message, 'error');
     } finally {
       setIsRegisteringClient(false);
     }
@@ -574,7 +583,7 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
       loadData();
     } catch (error: any) {
       console.error('Erro ao deletar venda:', error);
-      alert(`Falha ao excluir a oportunidade comercial: ${error.message || 'Erro de permissão RLS ou conexão.'}`);
+      showToast(`Falha ao excluir a oportunidade: ${error.message || 'Erro de permissão RLS.'}`, 'error');
     }
   };
 
@@ -2082,6 +2091,26 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
 
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Notificação Toast do App */}
+      {toast && (
+        <div 
+          className="fixed top-6 right-6 z-[9999] animate-fade-in"
+          style={{
+            animation: 'slideIn 0.3s ease forwards'
+          }}
+        >
+          <div className={`flex items-center gap-3 px-4 py-3 border shadow-2xl backdrop-blur-md font-sans text-xs font-bold uppercase tracking-wider ${
+            toast.type === 'success' 
+              ? 'bg-[#7FA88C]/15 border-[#7FA88C]/30 text-[#7FA88C]' 
+              : 'bg-[#B5504B]/15 border-[#B5504B]/30 text-[#B5504B]'
+          }`}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: toast.type === 'success' ? '#7FA88C' : '#B5504B' }}></span>
+            <span>{toast.message}</span>
+            <button onClick={() => setToast(null)} className="ml-2 hover:text-white text-slate-400 font-normal">✕</button>
           </div>
         </div>
       )}
