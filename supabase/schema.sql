@@ -227,8 +227,13 @@ CREATE POLICY "Permitir leitura de alertas andon para todos autenticados"
     TO authenticated
     USING (true);
 
-CREATE POLICY "Permitir escrita de alertas andon para gestor"
-    ON public.alertas_andon FOR ALL
+CREATE POLICY "Permitir inserção de alertas andon para todos autenticados"
+    ON public.alertas_andon FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+CREATE POLICY "Permitir atualização e exclusão de alertas andon apenas para gestores"
+    ON public.alertas_andon FOR UPDATE
     TO authenticated
     USING (
         EXISTS (
