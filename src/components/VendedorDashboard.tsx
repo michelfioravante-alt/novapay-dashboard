@@ -823,24 +823,26 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
               <Target className="w-5 h-5 text-[#C9A227]" />
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-[#23282B] space-y-2">
+          <div className="mt-4 pt-4 border-t border-[#23282B] space-y-1.5">
             <div className="flex justify-between text-xs text-slate-400 font-semibold">
               <span>Régua de Calibração</span>
               <span className={`font-mono ${pctMeta >= 70 ? 'text-[#7FA88C]' : 'text-[#B5504B]'}`}>{pctMeta.toFixed(1)}%</span>
             </div>
-            <div className="h-6 bg-[#0E1113] border border-[#23282B] relative w-full overflow-hidden">
+            
+            <div className="h-3 bg-[#0E1113] border border-[#23282B] relative w-full overflow-hidden">
               <div 
                 className={`h-full ${pctMeta >= 70 ? 'bg-[#7FA88C]' : 'bg-[#B5504B]'}`}
                 style={{ width: `${Math.min(pctMeta, 100)}%` }}
               ></div>
-              {/* Limiar de 70% fixo */}
-              <div className="absolute top-0 bottom-0 left-[70%] w-px bg-[#B5504B]" title="Zona Crítica (70%)">
-                <span className="absolute bottom-0.5 left-1 text-[7px] text-[#B5504B] font-bold">70%</span>
-              </div>
-              {/* Meta 100% */}
-              <div className="absolute top-0 bottom-0 left-[99%] w-0.5 bg-[#C9A227]" title="Meta 100%">
-                <span className="absolute bottom-0.5 right-1 text-[7px] text-[#C9A227] font-bold">META</span>
-              </div>
+              {/* Marcações de linha na barra */}
+              <div className="absolute top-0 bottom-0 left-[70%] w-px bg-slate-950/60" title="Zona Mínima (70%)"></div>
+              <div className="absolute top-0 bottom-0 left-[99%] w-px bg-slate-950/60" title="Meta (100%)"></div>
+            </div>
+
+            {/* Legenda de calibração inferior nítida */}
+            <div className="relative h-4 text-[9px] font-bold font-mono text-slate-500">
+              <span className="absolute left-[70%] -translate-x-1/2 text-[#B5504B]">70% (Mínimo)</span>
+              <span className="absolute left-[99%] -translate-x-full text-[#C9A227]">100% (Meta)</span>
             </div>
           </div>
         </div>
