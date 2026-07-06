@@ -54,28 +54,35 @@ Todos os dados são carregados em tempo real via Supabase Realtime. Alterações
 ## 🗄️ Modelagem de Dados
 
 ```
-clientes        → id, nome, segmento, data_cadastro, status (ativo/inativo)
+clientes        → id, nome, segmento, email, telefone, status (ativo/inativo), vendedor_id (carteira pessoal)
 transacoes      → id, cliente_id, valor, tipo, categoria, data, status
 metas           → id, mes_referencia, meta_receita, meta_novos_clientes
 vendedores      → id, nome, email, perfil (gestor/vendedor)
 vendas          → id, vendedor_id, cliente_id, valor_contrato, data_abertura,
                   data_fechamento, status, motivo_perda
-alertas_andon   → alertas de processos manuais (Andon) e desvios automáticos de receita
+alertas_andon   → alertas de processos manuais (Andon) e desvios automáticos de faturamento
 pdca_acoes      → ações 5W2H do gestor
 tarefas_vendedor→ checklist de atividades do vendedor
 ```
 
 ### RLS (Row Level Security)
 
-- **Vendedor**: SELECT em `vendas` apenas onde `vendedor_id = auth.uid()`
-- **Gestor**: acesso total a todas as tabelas via policy com `perfil = 'gestor'`
+* **Segurança de Carteira (Clientes)**:
+  * **Vendedor**: Acesso de leitura e escrita restrito aos clientes de sua carteira (`vendedor_id = auth.uid()`) ou clientes globais não associados (`vendedor_id IS NULL`).
+  * **Gestor**: Acesso total de leitura e escrita a todas as contas.
+* **Segurança de Vendas**:
+  * **Vendedor**: Só visualiza e edita propostas comerciais onde ele é o dono do registro (`vendedor_id = auth.uid()`).
+  * **Gestor**: Visualiza e gerencia todo o funil da operação.
+* **Segurança Financeira (Transações)**:
+  * **Vendedor**: Não visualiza detalhes do fluxo de caixa geral.
+  * **Gestor**: Acesso total ao faturamento e despesas.
 
 ### Triggers e Functions
 
 | Nome | Tipo | O que faz |
 |------|------|-----------|
 | `trg_on_sale_won` | Trigger AFTER INSERT/UPDATE em `vendas` | Quando status muda para `ganho`: cria transação de `entrada` em `transacoes` e atualiza o cliente para `status = ativo` |
-| `verificar_meta_mensal()` | Function PL/pgSQL | Chamada diariamente pela automação: verifica se receita < 70% da meta com ≤ 10 dias restantes e registra log em `alertas_andon` |
+| `verificar_meta_mensal()` | Function PL/pgSQL | Chamada diariamente pela automação: se receita < 70% da meta restando ≤ 10 dias, registra o alerta em `alertas_andon` e retorna `alerta_disparado = true` |
 
 ---
 
@@ -193,15 +200,18 @@ npm run dev
 
 ### Painel do Vendedor
 - Kanban drag-and-drop e modo lista com legenda dinâmica
-- Meta individual com barra de progresso e projeção do mês
-- Simulador de comissão interativo
+- **Acúmulo Dinâmico de Metas**: O valor da meta de referência e o gráfico de calibração se ajustam dinamicamente com base no período temporal selecionado (com acúmulo proporcional das metas no banco).
+- **Filtro de Período Unificado**: Select dropdown padronizado idêntico ao do gestor (Mês, 30 Dias, 90 Dias e Todo o Período).
+- **Cadastro Rápido de Cliente**: Sub-modal inteligente para cadastrar Segmento, E-mail e Telefone de novos clientes no ato de registrar uma oportunidade comercial.
+- **Isolamento de Carteira (CRM)**: Vendedor possui carteira pessoal de clientes isolada por RLS e filtragem ativa.
 - Playbook dinâmico por tipo de negociação com checklists integrados
 - **🚨 Chamada Andon Manual**: Botão de solicitar suporte e auxílio operacional nas propostas em negociação, enviando um sinal em tempo real para a tela do gestor.
 - Checklist de atividades diárias
 
 ### Extras além do escopo pedido
 - **ROI da Operação** como KPI adicional
-- **Exportação de CSV Brasileiro**: Relatório financeiro formatado para Excel nacional (delimitador `;`, decimais com vírgula e BOM UTF-8).
+- **Exportação de CSV Brasileiro**: Relatório financeiro formatado para Excel nacional (delimitador `;`, decimais com vírgula e BOM UTF-8) direto na tela do gestor.
+- **Alternador de Visibilidade de Senha**: Olhinho de mostrar/ocultar senha no formulário de login corporativo.
 - **Sistema de alertas internos (Andon)** para o gestor com WebSocket Realtime
 - **Edição de Custos e Despesas** integrada à tabela de transações do banco
 - **UX & Responsividade**: Fechamento automático de dropdowns ao clicar fora (click-outside backdrop) e popups responsivos adaptados para telas pequenas (no-overflow).
@@ -213,7 +223,7 @@ npm run dev
 ## 🔄 O que Faria Diferente com Mais Tempo
 
 1. **Testes automatizados** — Jest + Testing Library para os cálculos de KPIs
-2. **Export PDF/CSV** — relatórios mensais exportáveis diretamente do painel
+2. **Geração de Relatórios em PDF** — relatórios executivos mensais formatados para impressão em PDF diretamente do painel
 3. **CI/CD completo** — GitHub Actions com lint, test e deploy automático na main
 4. **Notificações push** — Web Push API para alertas de meta no browser
 5. **Metas granulares** — metas individuais por vendedor, por segmento e por produto
