@@ -69,7 +69,10 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
 
   // Estados de Cadastro de Cliente Rápido
   const [newClientName, setNewClientName] = useState('');
-  const [newClientSegment] = useState('Varejo');
+  const [newClientSegment, setNewClientSegment] = useState('Varejo');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [isQuickClientModalOpen, setIsQuickClientModalOpen] = useState(false);
   const [isRegisteringClient, setIsRegisteringClient] = useState(false);
 
   // Checklist Playbook Comercial (Rotina Diária mockada foi removida em prol do Playbook dinâmico por negócio)
@@ -198,7 +201,8 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
             segmento: clientSegment,
             email: clientEmail.trim() || null,
             telefone: clientPhone.trim() || null,
-            status: clientStatus
+            status: clientStatus,
+            vendedor_id: vendedor.id
           }
         ]);
 
@@ -241,10 +245,11 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
         if (updated) setSelectedSaleForPlaybook(updated);
       }
 
-      // 2. Carregar clientes para o seletor
+      // 2. Carregar clientes para o seletor (filtrando clientes da carteira do vendedor)
       const { data: clientsData, error: clientsError } = await supabase
         .from('clientes')
         .select('*')
+        .or(`vendedor_id.eq.${vendedor.id},vendedor_id.is.null`)
         .order('nome', { ascending: true });
 
       if (clientsError) throw clientsError;
@@ -331,7 +336,14 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
       const { data, error } = await supabase
         .from('clientes')
         .insert([
-          { nome: newClientName, segmento: newClientSegment, status: 'ativo' }
+          { 
+            nome: newClientName, 
+            segmento: newClientSegment, 
+            email: newClientEmail.trim() || null,
+            telefone: newClientPhone.trim() || null,
+            status: 'ativo',
+            vendedor_id: vendedor.id // Carteira pessoal
+          }
         ])
         .select()
         .single();
@@ -341,9 +353,14 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
         setClients(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)));
         setClientId(data.id); // Selecionar o cliente recém criado
         setNewClientName(''); // Limpar
+        setNewClientEmail('');
+        setNewClientPhone('');
+        setNewClientSegment('Varejo');
+        setIsQuickClientModalOpen(false); // Fecha o modal secundário
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao cadastrar cliente:', error);
+      alert('Erro ao cadastrar cliente: ' + error.message);
     } finally {
       setIsRegisteringClient(false);
     }
@@ -1393,30 +1410,6 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
               <button onClick={() => setIsAddModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
             </div>
 
-            {/* Cadastro de Cliente Rápido */}
-            <form onSubmit={handleRegisterClient} className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
-              <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider">Cadastrar Novo Cliente Rápido</p>
-              <div className="grid grid-cols-3 gap-2 items-end">
-                <div className="col-span-2 space-y-1">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nome da empresa/cliente"
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isRegisteringClient}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-1.5 px-3 rounded-lg text-xs border border-slate-700/60"
-                >
-                  {isRegisteringClient ? 'Criando...' : 'Cadastrar'}
-                </button>
-              </div>
-            </form>
-
             {/* Formulário Principal de Venda */}
             <form onSubmit={handleCreateSale} className="space-y-4">
               {formError && (
@@ -1426,7 +1419,16 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
               )}
 
               <div className="space-y-1">
-                <label htmlFor="client-select" className="text-[10px] font-bold text-slate-400 uppercase">Selecione o Cliente</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="client-select" className="text-[10px] font-bold text-slate-400 uppercase">Selecione o Cliente</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickClientModalOpen(true)}
+                    className="text-[10px] font-bold text-brand-400 hover:text-brand-300 uppercase tracking-wider flex items-center gap-1 transition-all"
+                  >
+                    ➕ Cadastrar Cliente Novo
+                  </button>
+                </div>
                 <select
                   id="client-select"
                   required
@@ -1594,6 +1596,89 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
           <span className="text-[10px] font-bold font-sans">Insights</span>
         </button>
       </div>
+
+      {/* Modal Secundário: Cadastrar Cliente Novo com Segmento, Email e Telefone */}
+      {isQuickClientModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-[60] animate-fade-in">
+          <div className="w-full max-w-[420px] glass-panel border border-[#23282B] bg-[#14181A] p-6 shadow-2xl space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between border-b border-[#23282B] pb-3">
+              <h3 className="text-xs font-bold text-white tracking-widest uppercase">Cadastrar Novo Cliente</h3>
+              <button onClick={() => setIsQuickClientModalOpen(false)} className="p-1 rounded bg-[#0E1113] border border-[#23282B] text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={handleRegisterClient} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 uppercase">Nome / Razão Social</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Nome do cliente ou empresa"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 uppercase">Segmento</label>
+                <select
+                  value={newClientSegment}
+                  onChange={(e) => setNewClientSegment(e.target.value)}
+                  className="w-full glass-input text-xs bg-[#0E1113] border border-[#23282B]"
+                >
+                  <option value="Tecnologia">Tecnologia</option>
+                  <option value="Varejo">Varejo</option>
+                  <option value="Serviços">Serviços</option>
+                  <option value="Indústria">Indústria</option>
+                  <option value="Saúde">Saúde</option>
+                  <option value="Financeiro">Financeiro</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 uppercase">E-mail de Contato</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="exemplo@empresa.com"
+                  value={newClientEmail}
+                  onChange={(e) => setNewClientEmail(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 uppercase">Telefone</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="(00) 00000-0000"
+                  value={newClientPhone}
+                  onChange={(e) => setNewClientPhone(e.target.value)}
+                  className="w-full glass-input text-xs"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickClientModalOpen(false)}
+                  className="px-4 py-2 border border-[#23282B] text-slate-400 hover:text-white rounded-lg text-xs transition-all uppercase tracking-wider"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRegisteringClient}
+                  className="px-4 py-2 bg-[#C9A227]/10 hover:bg-[#C9A227]/20 border border-[#C9A227]/30 text-[#C9A227] hover:text-white rounded-lg text-xs font-bold transition-all uppercase tracking-wider"
+                >
+                  {isRegisteringClient ? 'Cadastrando...' : 'Salvar Cliente'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal 3: Cadastro Completo de Cliente */}
       {isClientModalOpen && (
