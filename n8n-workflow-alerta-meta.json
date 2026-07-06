@@ -1,0 +1,189 @@
+{
+  "id": "novapay-alerta-meta-mensal",
+  "name": "NovaPay - Alerta de Meta Mensal",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "node-cron-trigger",
+      "name": "Agendamento Diário 9h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rxtnlvzxhzyeetpobkyx.supabase.co/rest/v1/rpc/verificar_meta_mensal",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$credentials.supabaseApiKey}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$credentials.supabaseApiKey}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "options": {}
+      },
+      "id": "node-http-supabase",
+      "name": "Verificar Meta Mensal (Supabase RPC)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-alerta-disparado",
+              "leftValue": "={{$json.alerta_disparado}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-alerta",
+      "name": "Alerta Foi Disparado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.placeholder.com/webhook/novapay-alerta-meta",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"projeto\": \"NovaPay\",\n  \"evento\": \"alerta_meta_mensal\",\n  \"mensagem\": \"A meta mensal foi atingida ou requer atenção.\",\n  \"dados\": {{ JSON.stringify($json) }},\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "node-http-webhook-notificacao",
+      "name": "Enviar Notificação (Webhook)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 180]
+    },
+    {
+      "parameters": {},
+      "id": "node-noop-sem-alerta",
+      "name": "Sem Alerta (Ignorar)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 420]
+    }
+  ],
+  "connections": {
+    "Agendamento Diário 9h": {
+      "main": [
+        [
+          {
+            "node": "Verificar Meta Mensal (Supabase RPC)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Meta Mensal (Supabase RPC)": {
+      "main": [
+        [
+          {
+            "node": "Alerta Foi Disparado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerta Foi Disparado?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Notificação (Webhook)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sem Alerta (Ignorar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "tag-novapay",
+      "name": "NovaPay"
+    },
+    {
+      "id": "tag-financeiro",
+      "name": "Financeiro"
+    },
+    {
+      "id": "tag-alertas",
+      "name": "Alertas"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "novapay-instance"
+  }
+}
