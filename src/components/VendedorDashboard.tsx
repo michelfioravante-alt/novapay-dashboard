@@ -46,6 +46,7 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
   const [crmSearch, setCrmSearch] = useState('');
   
   // Estado das metas e time para cálculo dinâmico da meta individual
+  const [metas, setMetas] = useState<any[]>([]);
   const [metaReceitaGlobal, setMetaReceitaGlobal] = useState(80000);
   const [totalVendedores, setTotalVendedores] = useState(3);
   
@@ -267,17 +268,24 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
       if (clientsError) throw clientsError;
       setClients(clientsData || []);
 
-      // 3. Buscar a meta de receita configurada mais recente
-      const today = new Date();
-      const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      // 3. Buscar todas as metas do banco
       const { data: metasData } = await supabase
         .from('metas')
-        .select('meta_receita')
-        .gte('mes_referencia', `${currentMonthStr}-01`)
-        .lte('mes_referencia', `${currentMonthStr}-31`);
+        .select('*')
+        .order('mes_referencia', { ascending: false });
 
-      if (metasData && metasData.length > 0) {
-        setMetaReceitaGlobal(Number(metasData[0].meta_receita));
+      if (metasData) {
+        setMetas(metasData);
+        // Definir a meta do mês atual como meta global de receita padrão
+        const today = new Date();
+        const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        const currentMeta = metasData.find(m => m.mes_referencia?.startsWith(currentMonthStr));
+        if (currentMeta) {
+          setMetaReceitaGlobal(Number(currentMeta.meta_receita));
+        } else if (metasData.length > 0) {
+          // Fallback para a mais recente
+          setMetaReceitaGlobal(Number(metasData[0].meta_receita));
+        }
       }
 
       // 4. Buscar o total de vendedores ativos
@@ -635,8 +643,24 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
   // Realizado Comercial Individual (Faturamento total de vendas ganhas no período selecionado)
   const faturamentoRealizado = wonSalesThisPeriod.reduce((acc, v) => acc + Number(v.valor_contrato), 0);
 
-  // Meta Individual Proporcional (Meta Global / Quantidade de Vendedores ativos)
-  const metaIndividual = totalVendedores > 0 ? (metaReceitaGlobal / totalVendedores) : 25000.00; 
+  // Meta Individual Proporcional Dinâmica com base no período (timeFilter) selecionado
+  const metaIndividual = (() => {
+    const baseMeta = totalVendedores > 0 ? (metaReceitaGlobal / totalVendedores) : 25000.00;
+    if (timeFilter === 'current_month' || timeFilter === '30_days') {
+      return baseMeta;
+    }
+    if (timeFilter === '90_days') {
+      // Soma das metas dos últimos 3 meses cadastrados
+      const recentMetasSum = metas.slice(0, 3).reduce((acc, m) => acc + Number(m.meta_receita), 0);
+      return totalVendedores > 0 && recentMetasSum > 0 ? (recentMetasSum / totalVendedores) : (baseMeta * 3);
+    }
+    if (timeFilter === 'all') {
+      // Soma de todas as metas registradas na história do banco de dados
+      const allMetasSum = metas.reduce((acc, m) => acc + Number(m.meta_receita), 0);
+      return totalVendedores > 0 && allMetasSum > 0 ? (allMetasSum / totalVendedores) : (baseMeta * (metas.length || 1));
+    }
+    return baseMeta;
+  })(); 
 
   // Comissão estimada: 5% sobre vendas ganhas no período selecionado
   const comissaoEstimada = faturamentoRealizado * 0.05;
@@ -757,25 +781,21 @@ export default function VendedorDashboard({ vendedor, resetKey = 0 }: VendedorDa
 
         <div className="flex items-center gap-3 flex-wrap">
           {activeDesktopTab !== 'clientes' && (
-            <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
-              {([
-                { id: 'current_month', label: 'Mês' },
-                { id: '30_days', label: '30D' },
-                { id: '90_days', label: '90D' },
-                { id: 'all', label: 'Tudo' }
-              ]).map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => setTimeFilter(opt.id)}
-                  className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-all ${
-                    timeFilter === opt.id 
-                      ? 'bg-[#C9A227]/10 text-[#C9A227] border border-[#C9A227]/20' 
-                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="relative inline-block">
+              <select
+                id="filter-time-select"
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value)}
+                className="appearance-none bg-[#C9A227]/5 border border-[#C9A227]/25 text-[#C9A227] hover:border-[#C9A227]/50 text-[9px] font-mono font-bold px-2.5 py-1.5 pr-6 uppercase tracking-wider rounded-none cursor-pointer focus:outline-none focus:ring-0"
+              >
+                <option value="current_month" className="bg-[#0E1113] text-white">Este Mês</option>
+                <option value="30_days" className="bg-[#0E1113] text-white">Últimos 30 Dias</option>
+                <option value="90_days" className="bg-[#0E1113] text-white">Últimos 90 Dias</option>
+                <option value="all" className="bg-[#0E1113] text-white">Todo o Período</option>
+              </select>
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[6px] text-[#C9A227] font-mono font-black">
+                ▼
+              </span>
             </div>
           )}
 

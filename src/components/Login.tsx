@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -9,6 +9,7 @@ interface LoginProps {
 export default function Login({ onLoginSuccess }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -407,15 +408,25 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <label htmlFor="password" className="block text-[10px] font-semibold text-[#7C868A] uppercase tracking-wider">
               Senha de Acesso
             </label>
-            <input
-              id="password"
-              type="password"
-              required
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-transparent border-b border-[#23282B] text-[#D8DEE1] font-mono text-sm py-2 px-0.5 outline-none focus:border-b-[#C9A227] transition-colors placeholder:font-sans placeholder:text-[#4A5256]"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-transparent border-b border-[#23282B] text-[#D8DEE1] font-mono text-sm py-2 pl-0.5 pr-8 outline-none focus:border-b-[#C9A227] transition-colors placeholder:font-sans placeholder:text-[#4A5256]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded text-[#7C868A] hover:text-white transition-colors"
+                title={showPassword ? "Ocultar Senha" : "Mostrar Senha"}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-between items-center text-[11px] text-[#7C868A] pt-1">
